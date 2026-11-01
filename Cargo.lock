@@ -4580,6 +4580,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tendril-launcher"
+version = "0.1.0"
+dependencies = [
+ "pumpkin-config",
+ "pumpkin-core",
+ "pumpkin-data",
+ "pumpkin-util",
+ "pumpkin-wasm-host",
+ "pumpkin-world",
+ "rayon",
+ "rustls",
+ "tendril-setup",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tendril-setup"
 version = "0.1.0"
 dependencies = [

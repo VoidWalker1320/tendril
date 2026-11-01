@@ -1,0 +1,30 @@
+[package]
+name = "tendril-launcher"
+version = "0.1.0"
+description = "One-file Minecraft-compatible server built on Pumpkin"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "tendril"
+path = "src/main.rs"
+
+# Every dependency below is already in Pumpkin's workspace; the launcher adds no new crates.
+[dependencies]
+tendril-setup = { path = "setup" }
+
+pumpkin-core.workspace = true
+pumpkin-wasm-host.workspace = true
+pumpkin-config.workspace = true
+pumpkin-data = { workspace = true, features = ["default"] }
+pumpkin-util.workspace = true
+pumpkin-world.workspace = true
+
+rayon.workspace = true
+rustls.workspace = true
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
+tracing.workspace = true
+
+[lints]
+workspace = true
