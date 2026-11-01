@@ -4600,9 +4600,12 @@ dependencies = [
 name = "tendril-setup"
 version = "0.1.0"
 dependencies = [
+ "flate2",
+ "md5",
  "pumpkin-config",
  "pumpkin-util",
  "serde",
+ "serde_json",
  "sysinfo",
  "tempfile",
  "thiserror 2.0.21",
