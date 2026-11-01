@@ -3,6 +3,10 @@
 name: Bench
 
 on:
+  # Push any ref to bench/<name> to benchmark it; dispatch and schedule only run from the
+  # default branch.
+  push:
+    branches: ["bench/**"]
   workflow_dispatch:
   schedule:
     - cron: "41 3 * * *"
