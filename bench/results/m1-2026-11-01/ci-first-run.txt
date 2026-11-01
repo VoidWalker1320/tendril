@@ -1,0 +1,20 @@
+# First-run gate (bench/first_run_test.py) on GitHub Actions, run 41315195831, commit 2386dc184
+# One fresh-world run per runner; shared CI machines, not a benchmark.
+== First run on Linux x86 64 musl
+{"scenario": "defaults", "port open ms": 42.1, "ready ms": 34, "rss mib": 68.9, "status protocol": 777}
+{"scenario": "offline join", "exec to spawn ms": 2893.1, "login breakdown ms": {"connected": 0.1, "login finished": 3.2, "config finished": 17.4, "play login": 30.2, "spawn position": 2851.8}}
+== First run on Linux aarch64
+{"scenario": "defaults", "port open ms": 43.1, "ready ms": 19, "rss mib": 131.6, "status protocol": 777}
+{"scenario": "offline join", "exec to spawn ms": 1445.7, "login breakdown ms": {"connected": 0.1, "login finished": 1.7, "config finished": 8.3, "play login": 20.5, "spawn position": 1404.4}}
+== First run on Linux x86 64
+{"scenario": "defaults", "port open ms": 42.5, "ready ms": 38, "rss mib": 72.9, "status protocol": 777}
+{"scenario": "offline join", "exec to spawn ms": 1639.8, "login breakdown ms": {"connected": 0.1, "login finished": 3.1, "config finished": 16.3, "play login": 38.3, "spawn position": 1597.5}}
+== First run on macOS arm64
+{"scenario": "defaults", "port open ms": 204.6, "ready ms": 106, "rss mib": 47.3, "status protocol": 777}
+{"scenario": "offline join", "exec to spawn ms": 1839.6, "login breakdown ms": {"connected": 0.1, "login finished": 0.7, "config finished": 5.2, "play login": 17.7, "spawn position": 1677.5}}
+== First run on Windows x86 64
+{"scenario": "defaults", "port open ms": 296.0, "ready ms": 159, "rss mib": 25.2, "status protocol": 777}
+{"scenario": "offline join", "exec to spawn ms": 1672.0, "login breakdown ms": {"connected": 31.0, "login finished": 31.0, "config finished": 47.0, "play login": 47.0, "spawn position": 1453.0}}
+== First run on Linux aarch64 musl
+{"scenario": "defaults", "port open ms": 24.2, "ready ms": 25, "rss mib": 30.9, "status protocol": 777}
+{"scenario": "offline join", "exec to spawn ms": 1145.6, "login breakdown ms": {"connected": 0.1, "login finished": 5.1, "config finished": 13.2, "play login": 29.2, "spawn position": 1123.9}}

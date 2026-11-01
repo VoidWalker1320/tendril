@@ -89,3 +89,11 @@ First run asks once (or takes `--accept-eula`) and writes `eula=true` to `eula.t
 ## D-022 Launcher split so its logic builds on the phone (2026-11-01, M1)
 
 `pumpkin-data` is 91 MB of generated Rust. Compiling it with one job used about 2.6 GB of RAM plus compressed swap within 80 s and was still growing when the memory guard stopped it; a two-job build exhausted memory and Android restarted the whole environment. So `launcher/setup` (`tendril-setup`) holds the settings, first-run, profile, tier and CLI code and depends only on `pumpkin-config` and `pumpkin-util`, which build and test on the phone. `launcher/` (`tendril-launcher`, binary `tendril`) is only `main.rs` and the mirrored process code. The full binary is built by CI or a machine with at least 8 GB of RAM (estimate, not measured).
+
+## D-023 Android builds target API 24 (2026-11-01, M1)
+
+`sysinfo` 0.40 (upstream bump in 2709e8b7a) links `getifaddrs`, which Android's libc only provides from API 24; `cargo-ndk` defaults to API 21, so the link failed. API 24 (Android 7.0) is also the oldest Android Termux supports. CI passes `--platform 24`. Upstream's own Android release job will hit the same error once it runs (it was skipped on that commit).
+
+## D-024 Pushed history is only added to, never rewritten (2026-11-01, M1)
+
+Once a branch is on GitHub, fixes land as new commits; no force-pushes. Before a push, fixups are folded into the commits they belong to.
