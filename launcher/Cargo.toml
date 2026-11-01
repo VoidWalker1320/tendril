@@ -26,5 +26,12 @@ rustls.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal"] }
 tracing.workspace = true
 
+# Section 10: compared with the system allocator per target by the Bench workflow.
+# MIT, about 0.5 MB of C built with cc, supports Android aarch64.
+mimalloc = { version = "0.1.52", default-features = false, optional = true }
+
+[features]
+mimalloc = ["dep:mimalloc"]
+
 [lints]
 workspace = true
