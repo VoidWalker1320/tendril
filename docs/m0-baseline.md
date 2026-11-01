@@ -1,6 +1,6 @@
 # M0 baseline (2026-11-01)
 
-Recon for Gourd: upstream state, verified versions and a measured baseline before any of our code exists.
+Recon for Tendril (called Gourd during M0): upstream state, verified versions and a measured baseline before any of our code exists.
 
 ## Machine and method
 
