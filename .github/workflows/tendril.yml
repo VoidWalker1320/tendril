@@ -100,7 +100,8 @@ jobs:
         with:
           key: android
       - run: cargo install cargo-ndk
-      - run: cargo ndk -t arm64-v8a build --locked --release -p tendril-launcher
+      # API 24 is Termux's minimum (Android 7) and the first with getifaddrs, which sysinfo 0.40 links.
+      - run: cargo ndk -t arm64-v8a --platform 24 build --locked --release -p tendril-launcher
       - uses: actions/upload-artifact@v7
         with:
           name: tendril-aarch64-android
