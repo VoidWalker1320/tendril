@@ -616,6 +616,17 @@ impl Server {
         self.datapack_manager.is_feature_enabled(self, feature)
     }
 
+    /// Vanilla `autoSave` when the server pauses while empty. Uses the same per-world path as
+    /// the periodic autosave, so `/save-off` is respected.
+    pub fn request_autosave(&self) {
+        for world in self.worlds.load().iter() {
+            if world.level.save_enabled.load(Ordering::Relaxed) {
+                world.level.should_save.store(true, Ordering::Relaxed);
+                world.level.level_channel.notify();
+            }
+        }
+    }
+
     pub async fn save_all(&self) -> Result<(), String> {
         self.management_hub.broadcast_server_saving();
 
