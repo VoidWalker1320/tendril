@@ -26,6 +26,19 @@ jobs:
       - run: cargo clippy --locked -p tendril-launcher -p tendril-setup --all-targets
       - run: cargo test --locked -p tendril-setup -p tendril-launcher
 
+  pumpkin-changes:
+    # Upstream crates Tendril patches: their own strict clippy and the tests next to our changes.
+    name: Pumpkin crates we change
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable && rustup component add clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: pumpkin-changes
+      - run: cargo clippy --locked -p pumpkin-core --all-targets --all-features
+      - run: cargo test --locked -p pumpkin-core --lib server::ticker
+
   first-run:
     # M1 gate: an empty folder becomes a joinable server with one command.
     name: First run on ${{ matrix.name }}

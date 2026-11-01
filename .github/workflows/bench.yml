@@ -1,0 +1,67 @@
+# Section 14 benchmarks with the binaries we would ship: upstream's release profile (fat LTO)
+# and stripped symbols. Compares the system allocator with mimalloc (section 10).
+name: Bench
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 3 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_PROFILE_RELEASE_STRIP: symbols
+
+jobs:
+  bench:
+    name: Bench ${{ matrix.name }} (${{ matrix.alloc }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-26.04-arm]
+        alloc: [system, mimalloc]
+        include:
+          - os: ubuntu-latest
+            name: linux-x86_64
+          - os: ubuntu-26.04-arm
+            name: linux-aarch64
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench-${{ matrix.name }}-${{ matrix.alloc }}
+      - name: Build with the release profile
+        run: cargo build --locked --release -p tendril-launcher ${{ matrix.alloc == 'mimalloc' && '--features mimalloc' || '' }}
+      - name: Bench (3 runs)
+        run: target/release/tendril bench --json bench-${{ matrix.name }}-${{ matrix.alloc }}.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bench-${{ matrix.name }}-${{ matrix.alloc }}
+          path: bench-${{ matrix.name }}-${{ matrix.alloc }}.json
+
+  android:
+    # Same profile for the phone; the phone runs `tendril bench` itself.
+    name: Android release build (${{ matrix.alloc }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        alloc: [system, mimalloc]
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable && rustup target add aarch64-linux-android
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench-android-${{ matrix.alloc }}
+      - run: cargo install cargo-ndk
+      - run: cargo ndk -t arm64-v8a --platform 24 build --locked --release -p tendril-launcher ${{ matrix.alloc == 'mimalloc' && '--features mimalloc' || '' }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: tendril-aarch64-android-release-${{ matrix.alloc }}
+          path: target/aarch64-linux-android/release/tendril
