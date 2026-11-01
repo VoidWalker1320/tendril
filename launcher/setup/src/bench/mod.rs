@@ -490,8 +490,9 @@ fn print_table(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<
         let at = |f: &dyn Fn(&LoadSample) -> Option<f64>| col(&|r: &Run| r.load.get(i).and_then(f));
         writeln!(
             out,
-            "  {bots:>2} bots: RSS {}, MSPT p50/p95/p99 {} / {} / {}, joined {}",
+            "  {bots:>2} bots: RSS {} (swap {}), MSPT p50/p95/p99 {} / {} / {}, joined {}",
             show(at(&|l| Some(mib(l.rss_bytes as f64))), "MiB"),
+            show(at(&|l| l.swap_bytes.map(|b| mib(b as f64))), "MiB"),
             show(at(&|l| l.mspt.map(|m| m.p50)), "ms"),
             show(at(&|l| l.mspt.map(|m| m.p95)), "ms"),
             show(at(&|l| l.mspt.map(|m| m.p99)), "ms"),
