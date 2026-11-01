@@ -10,7 +10,7 @@ use pumpkin_gametest::GameTestRunner;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 const NANOSECONDS_PER_MILLISECOND: i64 = 1_000_000;
 const NANOSECONDS_PER_SECOND: i64 = 1_000_000_000;
@@ -22,6 +22,8 @@ const OVERLOADED_TICKS_THRESHOLD: i64 = 20;
 const OVERLOADED_WARNING_INTERVAL_NANOS: i64 = 10 * NANOSECONDS_PER_SECOND;
 /// Vanilla `OVERLOADED_TICKS_WARNING_INTERVAL`.
 const OVERLOADED_TICKS_WARNING_INTERVAL: i64 = 100;
+/// Vanilla `SharedConstants.TICKS_PER_SECOND`, which `pause-when-empty-seconds` is scaled by.
+const TICKS_PER_SECOND: i32 = 20;
 /// Vanilla's absolute clock starts far past `lastOverloadWarningNanos = 0`,
 /// so the first overload always passes the warning-interval check.
 const NEVER_WARNED: i64 = i64::MIN / 2;
@@ -51,6 +53,7 @@ impl Ticker {
         let base = Instant::now();
         let mut schedule = TickSchedule::new();
         let mut game_test_runner = GameTestRunner::new();
+        let mut empty_ticks = 0;
 
         let park_thread = std::thread::current();
         let stop = server.stop_token.clone();
@@ -84,6 +87,31 @@ impl Ticker {
             // Deadline for the next wait. Work below may finish late; then the
             // following iteration catch-up-runs with no park.
             schedule.next_tick_nanos += this_tick_nanos;
+
+            // Vanilla `tickServer`: once nobody has been online for `pause-when-empty-seconds`,
+            // skip the whole tick. Connections run on their own tasks, so unlike vanilla's
+            // `tickConnection` nothing else has to run while paused.
+            let pause_seconds = server
+                .management_hub
+                .settings
+                .pause_when_empty_seconds
+                .load(Ordering::Relaxed);
+            let (ticks, pause) = advance_empty_ticks(
+                empty_ticks,
+                pause_seconds.saturating_mul(TICKS_PER_SECOND),
+                !sprinting && server.get_player_count() == 0,
+            );
+            empty_ticks = ticks;
+            if pause != EmptyPause::Run {
+                if pause == EmptyPause::Start {
+                    info!("Server empty for {pause_seconds} seconds, pausing");
+                    server.request_autosave();
+                }
+                if !wait_unless_stopping(server, base, schedule.next_tick_nanos) {
+                    break 'ticker;
+                }
+                continue 'ticker;
+            }
 
             manager.tick();
 
@@ -127,19 +155,53 @@ impl Ticker {
 
             server.update_tick_times(tick_duration_nanos);
 
-            if server.stop_token.is_cancelled() {
-                break 'ticker;
-            }
-
-            wait_until_next_tick(server, base, schedule.next_tick_nanos);
-
-            if server.stop_token.is_cancelled() {
+            if !wait_unless_stopping(server, base, schedule.next_tick_nanos) {
                 break 'ticker;
             }
         }
 
         debug!("Ticker stopped");
     }
+}
+
+/// Waits for the next tick deadline. Returns false when the server is stopping.
+fn wait_unless_stopping(server: &Arc<Server>, base: Instant, next_tick_nanos: i64) -> bool {
+    if server.stop_token.is_cancelled() {
+        return false;
+    }
+    wait_until_next_tick(server, base, next_tick_nanos);
+    !server.stop_token.is_cancelled()
+}
+
+/// What vanilla `tickServer` does this tick under `pause-when-empty-seconds`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EmptyPause {
+    Run,
+    /// The first skipped tick, which logs and autosaves.
+    Start,
+    Paused,
+}
+
+/// Vanilla `tickServer` empty-server pause: counts ticks without players (sprinting counts as
+/// busy) and skips ticks from `pause_ticks` on. `pause_ticks <= 0` turns it off and, as in
+/// vanilla, leaves the count untouched.
+const fn advance_empty_ticks(empty_ticks: i32, pause_ticks: i32, empty: bool) -> (i32, EmptyPause) {
+    if pause_ticks <= 0 {
+        return (empty_ticks, EmptyPause::Run);
+    }
+    let empty_ticks = if empty {
+        empty_ticks.saturating_add(1)
+    } else {
+        0
+    };
+    let pause = if empty_ticks < pause_ticks {
+        EmptyPause::Run
+    } else if empty_ticks == pause_ticks {
+        EmptyPause::Start
+    } else {
+        EmptyPause::Paused
+    };
+    (empty_ticks, pause)
 }
 
 /// Vanilla `MinecraftServer.runServer` overload skip. Returns the updated schedule and,
@@ -223,6 +285,37 @@ mod tests {
             next_tick_nanos: 0,
             last_overload_warning_nanos: nanos,
         }
+    }
+
+    #[test]
+    fn empty_pause_starts_once_at_the_threshold() {
+        let mut ticks = 0;
+        let mut states = Vec::new();
+        for _ in 0..4 {
+            let (next, pause) = advance_empty_ticks(ticks, 3, true);
+            ticks = next;
+            states.push(pause);
+        }
+        assert_eq!(
+            states,
+            [
+                EmptyPause::Run,
+                EmptyPause::Run,
+                EmptyPause::Start,
+                EmptyPause::Paused
+            ]
+        );
+    }
+
+    #[test]
+    fn a_player_resets_the_empty_count() {
+        assert_eq!(advance_empty_ticks(500, 3, false), (0, EmptyPause::Run));
+    }
+
+    #[test]
+    fn non_positive_pause_never_pauses() {
+        assert_eq!(advance_empty_ticks(100, 0, true), (100, EmptyPause::Run));
+        assert_eq!(advance_empty_ticks(100, -20, true), (100, EmptyPause::Run));
     }
 
     #[test]
