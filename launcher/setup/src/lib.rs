@@ -5,6 +5,7 @@
 //! builds and tests on a phone.
 #![cfg_attr(test, allow(clippy::unwrap_used, clippy::expect_used, clippy::panic))]
 
+pub mod bench;
 pub mod cli;
 pub mod first_run;
 pub mod profile;

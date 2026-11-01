@@ -12,7 +12,10 @@ license.workspace = true
 pumpkin-config.workspace = true
 pumpkin-util.workspace = true
 
+flate2.workspace = true
+md5.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 sysinfo.workspace = true
 thiserror.workspace = true
 toml.workspace = true

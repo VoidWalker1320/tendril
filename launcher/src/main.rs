@@ -13,6 +13,7 @@ use pumpkin_core::{PumpkinServer, SERVER_EXIT_CODE};
 use pumpkin_data::packet::CURRENT_MC_VERSION;
 use pumpkin_wasm_host::WasmPluginLoader;
 use pumpkin_world::{CURRENT_BEDROCK_MC_PROTOCOL, CURRENT_BEDROCK_MC_VERSION};
+use tendril_setup::bench::{self, Target, bot::PacketIds};
 use tendril_setup::cli::{self, Command, RunOptions};
 use tendril_setup::first_run::{self, Prepared};
 use tendril_setup::profile::{self, Host, Kind, Profile};
@@ -29,6 +30,7 @@ fn main() -> ExitCode {
     let started = Instant::now();
     match cli::parse(std::env::args().skip(1)) {
         Ok(Command::Run(options)) => run(&options, started),
+        Ok(Command::Bench(options)) => run_bench(&options),
         Ok(Command::Help) => {
             say(cli::USAGE);
             ExitCode::SUCCESS
@@ -252,5 +254,84 @@ fn log_ready(plan: &Plan, plugin_wait: Duration) {
     }
     if lan.is_none() {
         warn!("No network address found: only this device can connect");
+    }
+}
+
+fn run_bench(options: &bench::Options) -> ExitCode {
+    let exe = match std::env::current_exe() {
+        Ok(exe) => exe,
+        Err(err) => {
+            say(&format!("{NAME}: cannot find my own executable: {err}"));
+            return ExitCode::FAILURE;
+        }
+    };
+    let target = Target {
+        exe: &exe,
+        ids: packet_ids(),
+        version: VERSION,
+        commit: option_env!("GITHUB_SHA"),
+    };
+    match bench::run(target, options, &mut std::io::stdout()) {
+        Ok(_) => ExitCode::SUCCESS,
+        Err(err) => {
+            say(&format!("{NAME}: bench failed: {err}"));
+            ExitCode::FAILURE
+        }
+    }
+}
+
+/// The bench bot's packet IDs, taken from the protocol this binary serves.
+const fn packet_ids() -> PacketIds {
+    use pumpkin_data::packet::{clientbound as cb, serverbound as sb};
+    PacketIds {
+        protocol: CURRENT_MC_VERSION.protocol_version(),
+        sb_handshake: sb::handshake::INTENTION.0,
+        sb_status_request: sb::status::STATUS_REQUEST.0,
+        cb_status_response: cb::status::STATUS_RESPONSE.0,
+        sb_login_hello: sb::login::HELLO.0,
+        sb_login_custom_query_answer: sb::login::CUSTOM_QUERY_ANSWER.0,
+        sb_login_ack: sb::login::LOGIN_ACKNOWLEDGED.0,
+        sb_login_cookie_response: sb::login::COOKIE_RESPONSE.0,
+        cb_login_disconnect: cb::login::LOGIN_DISCONNECT.0,
+        cb_login_encryption: cb::login::HELLO.0,
+        cb_login_finished: cb::login::LOGIN_FINISHED.0,
+        cb_login_compression: cb::login::LOGIN_COMPRESSION.0,
+        cb_login_custom_query: cb::login::CUSTOM_QUERY.0,
+        cb_login_cookie_request: cb::login::COOKIE_REQUEST.0,
+        sb_cfg_cookie_response: sb::config::COOKIE_RESPONSE.0,
+        sb_cfg_finish: sb::config::FINISH_CONFIGURATION.0,
+        sb_cfg_keep_alive: sb::config::KEEP_ALIVE.0,
+        sb_cfg_pong: sb::config::PONG.0,
+        sb_cfg_resource_pack: sb::config::RESOURCE_PACK.0,
+        sb_cfg_known_packs: sb::config::SELECT_KNOWN_PACKS.0,
+        sb_cfg_accept_code_of_conduct: sb::config::ACCEPT_CODE_OF_CONDUCT.0,
+        cb_cfg_cookie_request: cb::config::COOKIE_REQUEST.0,
+        cb_cfg_disconnect: cb::config::DISCONNECT.0,
+        cb_cfg_finish: cb::config::FINISH_CONFIGURATION.0,
+        cb_cfg_keep_alive: cb::config::KEEP_ALIVE.0,
+        cb_cfg_ping: cb::config::PING.0,
+        cb_cfg_resource_pack_push: cb::config::RESOURCE_PACK_PUSH.0,
+        cb_cfg_known_packs: cb::config::SELECT_KNOWN_PACKS.0,
+        cb_cfg_code_of_conduct: cb::config::CODE_OF_CONDUCT.0,
+        sb_accept_teleport: sb::play::ACCEPT_TELEPORTATION.0,
+        sb_keep_alive: sb::play::KEEP_ALIVE.0,
+        sb_pong: sb::play::PONG.0,
+        sb_chunk_batch_received: sb::play::CHUNK_BATCH_RECEIVED.0,
+        sb_player_loaded: sb::play::PLAYER_LOADED.0,
+        cb_disconnect: cb::play::DISCONNECT.0,
+        cb_keep_alive: cb::play::KEEP_ALIVE.0,
+        cb_login: cb::play::LOGIN.0,
+        cb_ping: cb::play::PING.0,
+        cb_player_position: cb::play::PLAYER_POSITION.0,
+        cb_chunk_batch_finished: cb::play::CHUNK_BATCH_FINISHED.0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn phone_fixture_matches_generated_ids() {
+        // tendril-setup's examples and tests use IDS_26_3; it must track pumpkin-data.
+        assert_eq!(super::packet_ids(), tendril_setup::bench::bot::IDS_26_3);
     }
 }

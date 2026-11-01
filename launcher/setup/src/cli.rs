@@ -1,9 +1,13 @@
-//! Command line: `tendril [--tier <tier>] [--accept-eula] [--offline]`.
+//! Command line: `tendril [--tier <tier>] [--accept-eula] [--offline]` and `tendril bench`.
 
-use crate::settings::TierMode;
+use std::path::PathBuf;
+
+use crate::bench;
+use crate::settings::{TierMode, WorldFormat};
 
 pub const USAGE: &str = "\
 Usage: tendril [options]
+       tendril bench [bench options]
 
 Starts the server in the current folder. The first run creates server.toml,
 plugins/, mods/ and logs/, and asks you to accept the Minecraft EULA.
@@ -15,7 +19,15 @@ Options:
                                     For LAN games without internet and for tests;
                                     never use it on a server others can reach.
   -h, --help                        Show this help
-  -V, --version                     Show the version";
+  -V, --version                     Show the version
+
+Bench runs this server in a scratch folder with bots and prints startup time,
+idle memory and CPU, memory per player and tick times (3 runs, about 8 min):
+  --quick                           One short run, for a quick check
+  --runs <n>                        Number of measured runs (default 3)
+  --format <anvil|linear|pump>      World format to test (default anvil)
+  --keep                            Keep the scratch folder afterwards
+  --json <path>                     Where to write the full results";
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct RunOptions {
@@ -27,6 +39,7 @@ pub struct RunOptions {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Run(RunOptions),
+    Bench(bench::Options),
     Help,
     Version,
 }
@@ -36,13 +49,14 @@ pub enum Command {
 /// # Errors
 /// Returns a message for unknown options or bad values.
 pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Command, String> {
+    let mut args = args.into_iter().peekable();
+    if args.peek().is_some_and(|a| a == "bench") {
+        args.next();
+        return parse_bench(args);
+    }
     let mut options = RunOptions::default();
-    let mut args = args.into_iter();
     while let Some(arg) = args.next() {
-        let (flag, inline_value) = match arg.split_once('=') {
-            Some((f, v)) if f.starts_with("--") => (f.to_string(), Some(v.to_string())),
-            _ => (arg, None),
-        };
+        let (flag, inline_value) = split_flag(arg);
         match flag.as_str() {
             "-h" | "--help" => return Ok(Command::Help),
             "-V" | "--version" => return Ok(Command::Version),
@@ -68,6 +82,61 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Command, String> 
         }
     }
     Ok(Command::Run(options))
+}
+
+fn parse_bench(mut args: impl Iterator<Item = String>) -> Result<Command, String> {
+    let mut options = bench::Options::full();
+    while let Some(arg) = args.next() {
+        let (flag, inline_value) = split_flag(arg);
+        let mut value = |what: &str| {
+            inline_value
+                .clone()
+                .or_else(|| args.next())
+                .ok_or_else(|| format!("{flag} needs {what}"))
+        };
+        match flag.as_str() {
+            "-h" | "--help" => return Ok(Command::Help),
+            "--quick" => {
+                options = bench::Options {
+                    format: options.format,
+                    keep: options.keep,
+                    json: options.json,
+                    ..bench::Options::quick()
+                };
+            }
+            "--runs" => {
+                options.runs = value("a number")?
+                    .parse()
+                    .ok()
+                    .filter(|n| *n > 0)
+                    .ok_or("--runs needs a number above 0")?;
+            }
+            "--format" => {
+                options.format = match value("anvil, linear or pump")?.as_str() {
+                    "anvil" => WorldFormat::Anvil,
+                    "linear" => WorldFormat::Linear,
+                    "pump" => WorldFormat::Pump,
+                    other => {
+                        return Err(format!(
+                            "unknown format {other:?}; use anvil, linear or pump"
+                        ));
+                    }
+                };
+            }
+            "--keep" => options.keep = true,
+            "--json" => options.json = Some(PathBuf::from(value("a path")?)),
+            other => return Err(format!("unknown bench option {other:?}; see --help")),
+        }
+    }
+    Ok(Command::Bench(options))
+}
+
+/// Splits `--flag=value` into its parts; other arguments come back unchanged.
+fn split_flag(arg: String) -> (String, Option<String>) {
+    match arg.split_once('=') {
+        Some((f, v)) if f.starts_with("--") => (f.to_string(), Some(v.to_string())),
+        _ => (arg, None),
+    }
 }
 
 #[cfg(test)]
@@ -103,6 +172,23 @@ mod tests {
         assert!(run(&["--tier", "paper"]).is_err());
         assert!(run(&["--port", "1"]).is_err());
         assert!(run(&["start"]).is_err());
+    }
+
+    #[test]
+    fn bench_options() {
+        assert_eq!(run(&["bench"]), Ok(Command::Bench(bench::Options::full())));
+        let Ok(Command::Bench(o)) = run(&["bench", "--runs", "5", "--format=pump", "--keep"])
+        else {
+            panic!("expected bench");
+        };
+        assert_eq!((o.runs, o.format, o.keep), (5, WorldFormat::Pump, true));
+        let Ok(Command::Bench(o)) = run(&["bench", "--format", "linear", "--quick"]) else {
+            panic!("expected bench");
+        };
+        assert_eq!((o.runs, o.format), (1, WorldFormat::Linear));
+        assert!(run(&["bench", "--runs", "0"]).is_err());
+        assert!(run(&["bench", "--offline"]).is_err());
+        assert!(run(&["--offline", "bench"]).is_err());
     }
 
     #[test]
