@@ -1,0 +1,3 @@
+cb1c14ad37fbcad7249ee850dc8ee925ec9d214e1d73740b7b1dea06bcb454ce  pumpkin-aarch64-android
+9bb31fbd32ba6d4066fe3c491c73c772f38f4bcf8ebcf299f007ff01334a1234  pumpkin-ARM64-Linux
+d4dd9a003c48e1eb5f436f4ccc08df9d98ba1a0f5580c6f98803ca1cc4c35b19  pumpkin-ARM64-Linux-musl
