@@ -27,6 +27,8 @@ members = [
     "tools/pumpkin-codegen",
     "tools/pumpkin-fuzzer",
     "tools/pumpkin-tester",
+    # Tendril
+    "launcher/setup",
 ]
 
 # [workspace.lints.rust]

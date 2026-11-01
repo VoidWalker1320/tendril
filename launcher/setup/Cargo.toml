@@ -1,0 +1,24 @@
+[package]
+name = "tendril-setup"
+version = "0.1.0"
+description = "Tendril's server.toml, first run, profiles and tier selection"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+# Kept free of pumpkin-core and pumpkin-data, so it builds and tests on a 4 GB phone:
+# pumpkin-data alone needs more memory to compile than such a phone has free.
+[dependencies]
+pumpkin-config.workspace = true
+pumpkin-util.workspace = true
+
+serde.workspace = true
+sysinfo.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

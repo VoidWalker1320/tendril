@@ -4580,6 +4580,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tendril-setup"
+version = "0.1.0"
+dependencies = [
+ "pumpkin-config",
+ "pumpkin-util",
+ "serde",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml",
+]
+
+[[package]]
 name = "termcolor"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
