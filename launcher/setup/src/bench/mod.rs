@@ -39,6 +39,8 @@ const SETTLE: Duration = Duration::from_secs(2);
 pub struct Options {
     pub runs: usize,
     pub idle: Duration,
+    /// Window after `idle` for steady-state CPU; covers the empty-server pause at 60 s.
+    pub steady: Duration,
     pub load: Duration,
     pub bot_counts: Vec<usize>,
     pub format: WorldFormat,
@@ -53,6 +55,7 @@ impl Options {
         Self {
             runs: 3,
             idle: Duration::from_secs(60),
+            steady: Duration::from_secs(15),
             load: Duration::from_secs(30),
             bot_counts: vec![1, 10, 20],
             format: WorldFormat::Anvil,
@@ -67,6 +70,7 @@ impl Options {
         Self {
             runs: 1,
             idle: Duration::from_secs(10),
+            steady: Duration::from_secs(5),
             load: Duration::from_secs(10),
             bot_counts: vec![1, 5],
             ..Self::full()
@@ -116,7 +120,10 @@ pub struct Run {
     pub spawned_ms: f64,
     pub idle_rss_bytes: u64,
     pub idle_swap_bytes: Option<u64>,
+    /// CPU while idle, from the bot leaving until `idle` has passed.
     pub idle_cpu_percent: f64,
+    /// CPU in the `steady` window after that, when an empty server has paused.
+    pub steady_idle_cpu_percent: f64,
     pub idle_mspt: Option<Mspt>,
     pub load: Vec<LoadSample>,
     pub shutdown_ms: f64,
@@ -135,6 +142,7 @@ pub struct Machine {
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct Report {
     pub version: String,
+    pub binary_bytes: u64,
     pub commit: Option<String>,
     pub unix_time: u64,
     pub machine: Machine,
@@ -176,6 +184,7 @@ pub fn run(
 
     let report = Report {
         version: target.version.to_string(),
+        binary_bytes: std::fs::metadata(target.exe).map_or(0, |m| m.len()),
         commit: target.commit.map(str::to_string),
         unix_time: SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -230,8 +239,11 @@ fn measure(
     let before = usage(&server)?;
     std::thread::sleep(options.idle);
     let after = usage(&server)?;
-    let idle_ms = options.idle.as_secs_f64() * 1000.0;
+    // Tick times stop updating once the server pauses, so this covers the last ticks before it.
     let idle_mspt = tick_query(&mut server)?;
+    let steady_start = usage(&server)?;
+    std::thread::sleep(options.steady);
+    let steady_end = usage(&server)?;
 
     let mut load = Vec::with_capacity(options.bot_counts.len());
     for &bots in &options.bot_counts {
@@ -250,7 +262,8 @@ fn measure(
         spawned_ms,
         idle_rss_bytes: after.rss_bytes,
         idle_swap_bytes: after.swap_bytes,
-        idle_cpu_percent: after.cpu_ms.saturating_sub(before.cpu_ms) as f64 / idle_ms * 100.0,
+        idle_cpu_percent: cpu_percent(before, after, options.idle),
+        steady_idle_cpu_percent: cpu_percent(steady_start, steady_end, options.steady),
         idle_mspt,
         load,
         shutdown_ms: shutdown.as_secs_f64() * 1000.0,
@@ -319,6 +332,10 @@ fn load_phase(
         swap_bytes: usage.swap_bytes,
         mspt: mspt?,
     })
+}
+
+fn cpu_percent(from: Usage, to: Usage, over: Duration) -> f64 {
+    to.cpu_ms.saturating_sub(from.cpu_ms) as f64 / (over.as_secs_f64() * 1000.0) * 100.0
 }
 
 fn usage(server: &ServerProcess) -> Result<Usage, BenchError> {
@@ -419,9 +436,10 @@ fn print_table(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<
     writeln!(out)?;
     writeln!(
         out,
-        "{} {} | {} {} | {} CPUs, {} | profile {} | format {} | median of {} run{}",
+        "{} {} ({:.1} MB) | {} {} | {} CPUs, {} | profile {} | format {} | median of {} run{}",
         crate::NAME,
         report.version,
+        report.binary_bytes as f64 / 1e6,
         m.os,
         m.arch,
         m.cpus,
@@ -452,8 +470,10 @@ fn print_table(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<
     )?;
     writeln!(
         out,
-        "  idle CPU                   {}",
-        show(col(&|r| Some(r.idle_cpu_percent)), "% of a core")
+        "  idle CPU first {} s, then   {}, {}",
+        report.idle_seconds,
+        show(col(&|r| Some(r.idle_cpu_percent)), "%"),
+        show(col(&|r| Some(r.steady_idle_cpu_percent)), "% of a core")
     )?;
     writeln!(
         out,
