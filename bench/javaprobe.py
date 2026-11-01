@@ -16,11 +16,13 @@ PROTOCOL = 777  # 26.3, per minecraft-data protocolVersions.json and Pumpkin's v
 
 # serverbound
 SB_HANDSHAKE = 0x00
+SB_STATUS_REQUEST = 0
 SB_LOGIN_HELLO, SB_LOGIN_CUSTOM_QUERY_ANSWER, SB_LOGIN_ACK, SB_LOGIN_COOKIE = 0, 2, 3, 4
 SB_CFG_COOKIE, SB_CFG_FINISH, SB_CFG_KEEP_ALIVE, SB_CFG_PONG = 1, 3, 4, 5
 SB_CFG_RESOURCE_PACK, SB_CFG_KNOWN_PACKS, SB_CFG_ACCEPT_COC = 6, 7, 9
 SB_PLAY_ACCEPT_TELEPORT, SB_PLAY_KEEP_ALIVE, SB_PLAY_PONG = 0, 28, 45
 # clientbound
+CB_STATUS_RESPONSE = 0
 CB_LOGIN_DISCONNECT, CB_LOGIN_HELLO, CB_LOGIN_FINISHED = 0, 1, 2
 CB_LOGIN_COMPRESSION, CB_LOGIN_CUSTOM_QUERY, CB_LOGIN_COOKIE = 3, 4, 5
 CB_CFG_COOKIE, CB_CFG_DISCONNECT, CB_CFG_FINISH, CB_CFG_KEEP_ALIVE, CB_CFG_PING = 0, 2, 3, 4, 5
@@ -209,6 +211,21 @@ def login(host="127.0.0.1", port=25565, name="probe", timeout=30.0):
                 elif pid == CB_PLAY_DISCONNECT:
                     raise ProbeError(f"disconnected during play: {r.rest()[:300]!r}")
         raise ProbeError(f"timed out in state {state}; marks so far {marks}")
+    finally:
+        sock.close()
+
+
+def status(host="127.0.0.1", port=25565, timeout=10.0):
+    """Server-list ping: returns the status JSON (version, players, description)."""
+    sock = socket.create_connection((host, port), timeout=timeout)
+    try:
+        conn = Conn(sock)
+        conn.send(SB_HANDSHAKE, varint(PROTOCOL) + mc_string(host) + struct.pack(">H", port) + varint(1))
+        conn.send(SB_STATUS_REQUEST)
+        pid, r = conn.read()
+        if pid != CB_STATUS_RESPONSE:
+            raise ProbeError(f"unexpected status packet {pid}")
+        return json.loads(r.string())
     finally:
         sock.close()
 
