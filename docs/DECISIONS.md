@@ -97,3 +97,23 @@ First run asks once (or takes `--accept-eula`) and writes `eula=true` to `eula.t
 ## D-024 Pushed history is only added to, never rewritten (2026-11-01, M1)
 
 Once a branch is on GitHub, fixes land as new commits; no force-pushes. Before a push, fixups are folded into the commits they belong to.
+
+## D-025 System allocator on every target (2026-11-02, M2)
+
+Section 10 asks for the system allocator or mimalloc per platform, chosen from data. mimalloc raised idle RSS everywhere it was measured and was not faster to start: Linux x86_64 107.2 to 219.0 MiB, Linux aarch64 148.9 to 269.7 MiB (CI, fat LTO, median of 3), Android 97.5 to 104.5 MiB (dev phone, one run). The optional feature was removed again.
+
+## D-026 Hand free memory back while the server is empty (2026-11-02, M2)
+
+Most of the heap that grows when players join is free again after they leave, but the allocator keeps it. The launcher caps glibc's malloc arenas at the profile's worker count clamped to 2-4 (glibc's default is 8 per core), unless `MALLOC_ARENA_MAX` is set, and with no players online it calls `malloc_trim(0)` (glibc) or `mallopt(M_PURGE_ALL / M_PURGE)` (bionic) every 10 s. On the dev phone the arena cap alone cut idle RSS from 124.4 to 100.8 MiB on a fresh world and from 91.7 to 81.4 MiB on an existing one. The Bench workflow compares caps of 2, 4 and 32 to settle the value.
+
+## D-027 Pause-when-empty lives in pumpkin-core, also proposed upstream (2026-11-02, M2)
+
+It is a vanilla behaviour Pumpkin lacks, so it belongs upstream (rule 6). Tendril carries the commit in `crates/pumpkin-core` until upstream merges it; the PR branch is `upstream/pause-when-empty` and the description draft is `docs/upstream/pause-when-empty.md`. When upstream merges, the next weekly merge makes our copy disappear.
+
+## D-028 How `tendril bench` measures (2026-11-02, M2)
+
+Startup is process exec until a Java bot receives its spawn position on an existing world created by a warm-up run (fixed seed `tendril-bench`, Anvil, the host's own profile). There is no Bedrock bot yet, so section 4's "first Java and Bedrock login" is measured for Java only. Idle RSS is sampled 60 s after the bot leaves; idle CPU is reported for those 60 s and for the following 15 s, when an empty server has paused. Swap is shown next to every RSS because Android swaps busy and idle servers alike. The budget is 100,000,000 bytes.
+
+## D-029 Benchmarks run from `bench/*` branches (2026-11-02, M2)
+
+GitHub only schedules and dispatches workflows from the default branch, which is the upstream mirror `master`. Pushing a commit to `bench/<name>` starts the Bench workflow on it; the nightly schedule starts working once the fork's default branch is `main` (owner's choice).
