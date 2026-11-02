@@ -49,11 +49,14 @@ impl BedrockClient {
         server: &Arc<Server>,
     ) -> Result<PacketHandlerResult, LoginError> {
         let auth_payload: AuthPayload = serde_json::from_slice(&packet.jwt)?;
-        let player_data = if server.advanced_config.networking.bedrock.online_mode {
+        // Only a fully authenticated login proves the XUID; anything else can claim any XUID.
+        let (player_data, xuid_verified) = if server.advanced_config.networking.bedrock.online_mode
+        {
             match auth_payload.authentication_type {
-                AuthenticationType::Full => {
-                    verify_oidc_token_path(server, &auth_payload.token, false).await?
-                }
+                AuthenticationType::Full => (
+                    verify_oidc_token_path(server, &auth_payload.token, false).await?,
+                    true,
+                ),
                 AuthenticationType::SelfSigned => {
                     if server
                         .advanced_config
@@ -65,14 +68,20 @@ impl BedrockClient {
                         return Err(LoginError::SelfSignedNotAllowed);
                     }
 
-                    verify_oidc_token_path(server, &auth_payload.token, true).await?
+                    (
+                        verify_oidc_token_path(server, &auth_payload.token, true).await?,
+                        false,
+                    )
                 }
                 AuthenticationType::Guest => {
                     return Err(LoginError::GuestUnimplemented);
                 }
             }
         } else {
-            pumpkin_auth::jwt::extract_oidc_token_player_claims(&auth_payload.token)?
+            (
+                pumpkin_auth::jwt::extract_oidc_token_player_claims(&auth_payload.token)?,
+                false,
+            )
         };
 
         let raw_token_str = std::str::from_utf8(&packet.raw_token).map_err(|_| {
@@ -96,12 +105,23 @@ impl BedrockClient {
             bedrock_config.replace_username_spaces,
         );
 
-        let profile = GameProfile {
-            id: player_uuid(&player_data, bedrock_config.floodgate_uuids)?,
+        let mut profile = GameProfile {
+            id: player_uuid(
+                &player_data,
+                bedrock_config.floodgate_uuids && xuid_verified,
+            )?,
             name,
             properties: ArcSwap::new(Arc::new(Vec::new())),
             profile_actions: None,
         };
+        // A linked Bedrock account plays as its Java account, so duplicate checks see that one.
+        if xuid_verified
+            && let Some(links) = server.bedrock_account_links.get()
+            && let Some((id, name)) = links(&player_data.xuid)
+        {
+            profile.id = id;
+            profile.name = name;
+        }
 
         let login_public_key = pumpkin_auth::jwt::extract_cpk_from_token(&auth_payload.token)
             .map_err(LoginError::ChainValidationFailed)?;

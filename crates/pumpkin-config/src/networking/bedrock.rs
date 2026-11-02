@@ -137,7 +137,8 @@ pub struct BedrockConfig {
     pub replace_username_spaces: bool,
     /// Whether players get the UUID Floodgate derives from their XUID (`UUID(0, xuid)`), so
     /// their player data carries over between Pumpkin and a Geyser + Floodgate server.
-    /// Players without an XUID, such as in offline mode, keep the UUID from their login token.
+    /// Only Xbox-authenticated logins prove their XUID; other players (offline mode, self-signed
+    /// logins) keep the UUID from their login token.
     pub floodgate_uuids: bool,
     /// Bedrock Edition authentication settings.
     pub authentication: BedrockAuthenticationConfig,

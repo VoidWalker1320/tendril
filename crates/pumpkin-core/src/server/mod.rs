@@ -68,6 +68,9 @@ pub use recipe::RecipeManager;
 
 use crate::data::advancement_data::AdvancementManager;
 
+/// Looks up the Java identity a Bedrock player's XUID is linked to; see `Server::bedrock_account_links`.
+pub type BedrockAccountLinks = dyn Fn(&str) -> Option<(uuid::Uuid, String)> + Send + Sync;
+
 /// Wait before the first retry of a failed Bedrock OIDC key fetch; doubles up to the maximum.
 const OIDC_RETRY_FIRST: Duration = Duration::from_secs(5);
 const OIDC_RETRY_MAX: Duration = Duration::from_secs(300);
@@ -91,6 +94,9 @@ pub struct Server {
     key_store: OnceCell<Arc<KeyStore>>,
     /// Bedrock OIDC provider keys, fetched on startup for 1.26.10+ token validation.
     pub bedrock_oidc_keys: Arc<OnceCell<(String, pumpkin_auth::jwt::Jwks)>>,
+    /// Set by a program embedding Pumpkin to link Bedrock accounts to Java ones: maps a Bedrock
+    /// player's XUID to the Java UUID and name they log in as.
+    pub bedrock_account_links: std::sync::OnceLock<Box<BedrockAccountLinks>>,
     /// Cached Bedrock server private key (process-lifetime). Generated on first Bedrock login and reused.
     /// Manages server status information.
     listing: std::sync::Mutex<CachedStatus>,
@@ -329,6 +335,7 @@ impl Server {
             item_registry: super::item::items::default_registry(),
             key_store: OnceCell::new(),
             bedrock_oidc_keys: Arc::new(OnceCell::new()),
+            bedrock_account_links: std::sync::OnceLock::new(),
             listing,
             branding: CachedBranding::new(),
             bossbars: std::sync::Mutex::new(CustomBossbars::new()),
