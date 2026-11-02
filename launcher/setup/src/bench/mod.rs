@@ -34,6 +34,8 @@ const BOT_STAGGER: Duration = Duration::from_millis(150);
 /// Time allowed for every bot of a phase to finish joining before the clock starts.
 const JOIN_SLACK: Duration = Duration::from_secs(20);
 const SETTLE: Duration = Duration::from_secs(2);
+/// Swap below this is noise; above it a run's RSS is not comparable with others.
+const SWAP_NOISE_BYTES: u64 = 1 << 20;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Options {
@@ -499,17 +501,34 @@ fn print_table(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<
             at(&|l| Some(l.joined as f64)).map_or_else(|| "n/a".to_string(), |v| format!("{v:.0}")),
         )?;
     }
+    print_budgets(report, kind, out)
+}
+
+fn print_budgets(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<()> {
+    let runs = &report.runs;
+    let col = |f: &dyn Fn(&Run) -> Option<f64>| median(runs.iter().filter_map(f).collect());
+    let spawned = col(&|r| Some(r.spawned_ms));
     let budget = if kind == Kind::Android {
         STARTUP_BUDGET_PHONE
     } else {
         STARTUP_BUDGET_DESKTOP
     };
     let verdict = |ok: bool| if ok { "PASS" } else { "FAIL" };
-    if let Some(rss) = idle_rss {
+    // Swapped-out pages shrink VmRSS without the server using less, so the check counts them.
+    let footprint = col(&|r| Some((r.idle_rss_bytes + r.idle_swap_bytes.unwrap_or(0)) as f64));
+    let swapped = runs
+        .iter()
+        .any(|r| r.idle_swap_bytes.unwrap_or(0) > SWAP_NOISE_BYTES);
+    if let Some(bytes) = footprint {
         writeln!(
             out,
-            "  budget idle RSS <= 100 MB: {}",
-            verdict(rss <= IDLE_RSS_BUDGET as f64)
+            "  budget idle RSS <= 100 MB: {}{}",
+            verdict(bytes <= IDLE_RSS_BUDGET as f64),
+            if swapped {
+                " (counting swapped-out pages; RSS alone is not comparable)"
+            } else {
+                ""
+            }
         )?;
     }
     if let Some(ms) = spawned {
