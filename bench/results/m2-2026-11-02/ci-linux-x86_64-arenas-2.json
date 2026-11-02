@@ -1,0 +1,179 @@
+{
+  "version": "0.1.0",
+  "binary_bytes": 104373560,
+  "commit": "4c1fd30a2762f6f7c4aad013fde588a9a9f8a076",
+  "unix_time": 1793593656,
+  "machine": {
+    "os": "Linux (Ubuntu 24.04)",
+    "arch": "x86_64",
+    "kernel": "7.0.0-1017-azure",
+    "cpus": 4,
+    "ram_bytes": 16760344576,
+    "profile": "desktop"
+  },
+  "format": "anvil",
+  "idle_seconds": 60,
+  "load_seconds": 30,
+  "fresh_world_spawned_ms": 1644.881684,
+  "runs": [
+    {
+      "port_open_ms": 31.351366,
+      "spawned_ms": 601.771873,
+      "idle_rss_bytes": 95776768,
+      "idle_swap_bytes": 0,
+      "idle_cpu_percent": 0.9333333333333335,
+      "steady_idle_cpu_percent": 0.13333333333333333,
+      "idle_mspt": {
+        "avg": 0.14,
+        "p50": 0.14,
+        "p95": 0.18,
+        "p99": 0.19
+      },
+      "load": [
+        {
+          "bots": 1,
+          "joined": 1,
+          "rss_bytes": 97767424,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.15,
+            "p50": 0.15,
+            "p95": 0.18,
+            "p99": 0.23
+          }
+        },
+        {
+          "bots": 10,
+          "joined": 10,
+          "rss_bytes": 108613632,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.15,
+            "p50": 0.15,
+            "p95": 0.17,
+            "p99": 0.25
+          }
+        },
+        {
+          "bots": 20,
+          "joined": 20,
+          "rss_bytes": 131244032,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.14,
+            "p50": 0.14,
+            "p95": 0.17,
+            "p99": 0.18
+          }
+        }
+      ],
+      "shutdown_ms": 20.193147000000003
+    },
+    {
+      "port_open_ms": 23.354598,
+      "spawned_ms": 608.2908259999999,
+      "idle_rss_bytes": 96014336,
+      "idle_swap_bytes": 0,
+      "idle_cpu_percent": 0.9166666666666666,
+      "steady_idle_cpu_percent": 0.2,
+      "idle_mspt": {
+        "avg": 0.14,
+        "p50": 0.14,
+        "p95": 0.16,
+        "p99": 0.18
+      },
+      "load": [
+        {
+          "bots": 1,
+          "joined": 1,
+          "rss_bytes": 98398208,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.15,
+            "p50": 0.16,
+            "p95": 0.17,
+            "p99": 0.18
+          }
+        },
+        {
+          "bots": 10,
+          "joined": 10,
+          "rss_bytes": 109158400,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.16,
+            "p50": 0.16,
+            "p95": 0.19,
+            "p99": 0.24
+          }
+        },
+        {
+          "bots": 20,
+          "joined": 20,
+          "rss_bytes": 130998272,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.15,
+            "p50": 0.15,
+            "p95": 0.19,
+            "p99": 0.2
+          }
+        }
+      ],
+      "shutdown_ms": 20.197007
+    },
+    {
+      "port_open_ms": 22.525593,
+      "spawned_ms": 720.593014,
+      "idle_rss_bytes": 97046528,
+      "idle_swap_bytes": 0,
+      "idle_cpu_percent": 0.95,
+      "steady_idle_cpu_percent": 0.13333333333333333,
+      "idle_mspt": {
+        "avg": 0.14,
+        "p50": 0.14,
+        "p95": 0.18,
+        "p99": 0.19
+      },
+      "load": [
+        {
+          "bots": 1,
+          "joined": 1,
+          "rss_bytes": 99233792,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.15,
+            "p50": 0.15,
+            "p95": 0.17,
+            "p99": 0.21
+          }
+        },
+        {
+          "bots": 10,
+          "joined": 10,
+          "rss_bytes": 109993984,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.13,
+            "p50": 0.13,
+            "p95": 0.15,
+            "p99": 0.19
+          }
+        },
+        {
+          "bots": 20,
+          "joined": 20,
+          "rss_bytes": 133382144,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.16,
+            "p50": 0.16,
+            "p95": 0.18,
+            "p99": 0.21
+          }
+        }
+      ],
+      "shutdown_ms": 20.174341
+    }
+  ]
+}

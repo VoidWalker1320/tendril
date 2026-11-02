@@ -1,0 +1,179 @@
+{
+  "version": "0.1.0",
+  "binary_bytes": 95086864,
+  "commit": "4c1fd30a2762f6f7c4aad013fde588a9a9f8a076",
+  "unix_time": 1793593576,
+  "machine": {
+    "os": "Linux (Ubuntu 26.04)",
+    "arch": "aarch64",
+    "kernel": "7.0.0-1017-azure",
+    "cpus": 4,
+    "ram_bytes": 16715337728,
+    "profile": "desktop"
+  },
+  "format": "anvil",
+  "idle_seconds": 60,
+  "load_seconds": 30,
+  "fresh_world_spawned_ms": 1081.78843,
+  "runs": [
+    {
+      "port_open_ms": 20.785282,
+      "spawned_ms": 361.195714,
+      "idle_rss_bytes": 90841088,
+      "idle_swap_bytes": 0,
+      "idle_cpu_percent": 0.5666666666666667,
+      "steady_idle_cpu_percent": 0.06666666666666667,
+      "idle_mspt": {
+        "avg": 0.13,
+        "p50": 0.11,
+        "p95": 0.21,
+        "p99": 0.31
+      },
+      "load": [
+        {
+          "bots": 1,
+          "joined": 1,
+          "rss_bytes": 93974528,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.14,
+            "p50": 0.15,
+            "p95": 0.25,
+            "p99": 0.29
+          }
+        },
+        {
+          "bots": 10,
+          "joined": 10,
+          "rss_bytes": 104517632,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.13,
+            "p50": 0.11,
+            "p95": 0.21,
+            "p99": 0.26
+          }
+        },
+        {
+          "bots": 20,
+          "joined": 20,
+          "rss_bytes": 125341696,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.14,
+            "p50": 0.16,
+            "p95": 0.2,
+            "p99": 0.21
+          }
+        }
+      ],
+      "shutdown_ms": 20.180826999999997
+    },
+    {
+      "port_open_ms": 21.890386000000003,
+      "spawned_ms": 344.895308,
+      "idle_rss_bytes": 92270592,
+      "idle_swap_bytes": 0,
+      "idle_cpu_percent": 0.5333333333333333,
+      "steady_idle_cpu_percent": 0.13333333333333333,
+      "idle_mspt": {
+        "avg": 0.13,
+        "p50": 0.15,
+        "p95": 0.19,
+        "p99": 0.2
+      },
+      "load": [
+        {
+          "bots": 1,
+          "joined": 1,
+          "rss_bytes": 94617600,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.12,
+            "p50": 0.1,
+            "p95": 0.2,
+            "p99": 0.21
+          }
+        },
+        {
+          "bots": 10,
+          "joined": 10,
+          "rss_bytes": 104353792,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.12,
+            "p50": 0.1,
+            "p95": 0.19,
+            "p99": 0.2
+          }
+        },
+        {
+          "bots": 20,
+          "joined": 20,
+          "rss_bytes": 128004096,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.12,
+            "p50": 0.1,
+            "p95": 0.21,
+            "p99": 0.31
+          }
+        }
+      ],
+      "shutdown_ms": 20.174377
+    },
+    {
+      "port_open_ms": 20.743816000000002,
+      "spawned_ms": 347.091062,
+      "idle_rss_bytes": 92827648,
+      "idle_swap_bytes": 0,
+      "idle_cpu_percent": 0.5333333333333333,
+      "steady_idle_cpu_percent": 0.13333333333333333,
+      "idle_mspt": {
+        "avg": 0.13,
+        "p50": 0.11,
+        "p95": 0.2,
+        "p99": 0.21
+      },
+      "load": [
+        {
+          "bots": 1,
+          "joined": 1,
+          "rss_bytes": 94969856,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.13,
+            "p50": 0.12,
+            "p95": 0.2,
+            "p99": 0.22
+          }
+        },
+        {
+          "bots": 10,
+          "joined": 10,
+          "rss_bytes": 106307584,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.12,
+            "p50": 0.1,
+            "p95": 0.2,
+            "p99": 0.21
+          }
+        },
+        {
+          "bots": 20,
+          "joined": 20,
+          "rss_bytes": 130572288,
+          "swap_bytes": 0,
+          "mspt": {
+            "avg": 0.13,
+            "p50": 0.15,
+            "p95": 0.2,
+            "p99": 0.21
+          }
+        }
+      ],
+      "shutdown_ms": 20.174675999999998
+    }
+  ]
+}

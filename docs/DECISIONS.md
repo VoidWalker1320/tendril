@@ -117,3 +117,11 @@ Startup is process exec until a Java bot receives its spawn position on an exist
 ## D-029 Benchmarks run from `bench/*` branches (2026-11-02, M2)
 
 GitHub only schedules and dispatches workflows from the default branch, which is the upstream mirror `master`. Pushing a commit to `bench/<name>` starts the Bench workflow on it; the nightly schedule starts working once the fork's default branch is `main` (owner's choice).
+
+## D-030 Anvil stays the default world format (2026-11-02, M2)
+
+Section 10 asks to pick the default format from data. On the x86_64 runner (median of 3): Anvil 91.8 MiB idle and 586 ms to spawn, Pump 92.0 MiB and 607 ms, Linear 97.4 MiB and 515 ms; startup differences are within run-to-run noise. Linear costs memory and Pump buys nothing, while only Anvil can be opened by the other tiers.
+
+## D-031 Arena cap settled at the profile's worker count, 2-4 (2026-11-02, M2)
+
+Two Bench runs: the cap brings Linux aarch64 from 133-134 MiB to 88 MiB idle; 2 and 4 are within 2 MiB of each other on both architectures, and 2 showed slightly higher p95 tick times on x86_64 (0.30 vs 0.11 ms). Keeping the profile's worker count clamped to 2-4 (D-026).
