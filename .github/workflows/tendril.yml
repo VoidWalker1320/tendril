@@ -134,6 +134,16 @@ jobs:
           pumpkin-util = { path = "../tendril/crates/pumpkin-util" }
           pumpkin-data = { path = "../tendril/crates/pumpkin-data" }
           TOML
+          # Speak the Bedrock version this tree serves, and give every bot its own identity:
+          # BotMark claims the same XUID for all bots, so they would collide as one player.
+          LIB=../tendril/crates/pumpkin-world/src/lib.rs
+          PROTO=$(sed -n 's/^pub const CURRENT_BEDROCK_MC_PROTOCOL: u32 = \([0-9]*\);/\1/p' "$LIB")
+          GAME=$(sed -n 's/^pub const CURRENT_BEDROCK_MC_VERSION: &str = "\(.*\)";/\1/p' "$LIB")
+          test -n "$PROTO" && test -n "$GAME"
+          sed -i -e "s/^pub const BEDROCK_PROTOCOL_VERSION: i32 = [0-9]*;/pub const BEDROCK_PROTOCOL_VERSION: i32 = $PROTO;/" \
+                 -e "s/^pub const BEDROCK_GAME_VERSION: \&str = \".*\";/pub const BEDROCK_GAME_VERSION: \&str = \"$GAME\";/" \
+                 -e 's/"xid": "12345678",/"xid": self.username,/' src/bedrock.rs
+          grep -n -e 'BEDROCK_PROTOCOL_VERSION: i32' -e 'BEDROCK_GAME_VERSION: &str' -e '"xid"' src/bedrock.rs
           cargo build --release
       - name: Bedrock bots join, move and chat
         run: python3 tendril/bench/bedrock_bots_test.py tendril/target/release/tendril botmark/target/release/botmark 3 45
