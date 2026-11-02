@@ -304,6 +304,8 @@ impl Settings {
             .username_prefix
             .clone_from(&self.network.bedrock_username_prefix);
         bedrock.replace_username_spaces = true;
+        // Section 8: player data must survive a move to the Compat tier's Geyser + Floodgate.
+        bedrock.floodgate_uuids = true;
         bedrock.nethernet.address = SocketAddr::from(([0, 0, 0, 0], self.network.bedrock_port));
 
         config.advanced.world.chunk = match self.world.format {
@@ -476,6 +478,7 @@ mod tests {
             19140
         );
         assert_eq!(c.advanced.networking.bedrock.username_prefix, ".");
+        assert!(c.advanced.networking.bedrock.floodgate_uuids);
         assert!(matches!(c.advanced.world.chunk, ChunkConfig::Pump));
         assert!(!c.telemetry.enabled);
     }

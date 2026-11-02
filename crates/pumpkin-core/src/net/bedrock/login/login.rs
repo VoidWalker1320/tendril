@@ -22,6 +22,18 @@ fn build_username(display_name: &str, prefix: &str, replace_spaces: bool) -> Str
     name
 }
 
+/// The player's UUID: Floodgate's `UUID(0, xuid)` when asked for and an XUID is present,
+/// otherwise the identity UUID from the login token.
+fn player_uuid(
+    claims: &pumpkin_auth::jwt::PlayerClaims,
+    floodgate_uuids: bool,
+) -> Result<Uuid, LoginError> {
+    if floodgate_uuids && let Ok(xuid) = claims.xuid.parse::<u64>() {
+        return Ok(Uuid::from_u64_pair(0, xuid));
+    }
+    Uuid::parse_str(&claims.uuid).map_err(|_| LoginError::InvalidUuid)
+}
+
 impl BedrockClient {
     pub async fn handle_login(
         self: &Arc<Self>,
@@ -85,7 +97,7 @@ impl BedrockClient {
         );
 
         let profile = GameProfile {
-            id: Uuid::parse_str(&player_data.uuid).map_err(|_| LoginError::InvalidUuid)?,
+            id: player_uuid(&player_data, bedrock_config.floodgate_uuids)?,
             name,
             properties: ArcSwap::new(Arc::new(Vec::new())),
             profile_actions: None,
@@ -225,7 +237,38 @@ impl BedrockClient {
 
 #[cfg(test)]
 mod tests {
-    use super::build_username;
+    use super::{build_username, player_uuid};
+    use pumpkin_auth::jwt::PlayerClaims;
+
+    const TOKEN_UUID: &str = "5f1c6a3e-9d2b-4b0a-8c7e-2a1f3b4c5d6e";
+
+    fn claims(xuid: &str) -> PlayerClaims {
+        PlayerClaims {
+            display_name: "Steve".into(),
+            uuid: TOKEN_UUID.into(),
+            xuid: xuid.into(),
+        }
+    }
+
+    #[test]
+    fn floodgate_uuid_is_derived_from_the_xuid() {
+        let uuid = player_uuid(&claims("2535419381938497"), true).unwrap();
+        assert_eq!(uuid.to_string(), "00000000-0000-0000-0009-01f3539df941");
+    }
+
+    #[test]
+    fn token_uuid_is_kept_without_floodgate_uuids_or_an_xuid() {
+        assert_eq!(
+            player_uuid(&claims("2535419381938497"), false)
+                .unwrap()
+                .to_string(),
+            TOKEN_UUID
+        );
+        assert_eq!(
+            player_uuid(&claims(""), true).unwrap().to_string(),
+            TOKEN_UUID
+        );
+    }
 
     #[test]
     fn spaces_become_underscores_by_default() {
