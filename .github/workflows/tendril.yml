@@ -98,6 +98,46 @@ jobs:
           if [ "${{ runner.os }}" == "Windows" ]; then EXT=".exe"; fi
           "$DIR/tendril$EXT" bench --quick --json bench-quick.json
 
+  bedrock-bots:
+    # M3: Bedrock clients join over NetherNet, move and chat. BotMark (Pumpkin's own bot, MIT) is
+    # pinned and built against this tree's protocol crates, so it speaks the protocol we serve.
+    name: Bedrock bots (BotMark)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: tendril
+      - uses: actions/checkout@v7
+        with:
+          repository: Pumpkin-MC/BotMark
+          ref: d12fdd9e7e25465ecf493be50103d13e77d52c07
+          path: botmark
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bedrock-bots
+          workspaces: |
+            tendril
+            botmark
+      - name: Build Tendril
+        working-directory: tendril
+        run: cargo build --locked --release -p tendril-launcher
+      - name: Build BotMark against this tree's protocol crates
+        working-directory: botmark
+        env:
+          CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+        run: |
+          cat >> Cargo.toml <<'TOML'
+          [patch."https://github.com/Pumpkin-MC/Pumpkin"]
+          pumpkin-protocol = { path = "../tendril/crates/pumpkin-protocol" }
+          pumpkin-util = { path = "../tendril/crates/pumpkin-util" }
+          pumpkin-data = { path = "../tendril/crates/pumpkin-data" }
+          TOML
+          cargo build --release
+      - name: Bedrock bots join, move and chat
+        run: python3 tendril/bench/bedrock_bots_test.py tendril/target/release/tendril botmark/target/release/botmark 3 45
+
   macos-x86_64:
     # No x86_64 macOS runner in upstream's matrix either; cross-compile and build only.
     name: Build macOS x86_64
