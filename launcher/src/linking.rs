@@ -87,13 +87,14 @@ fn floodgate_xuid(id: uuid::Uuid) -> Option<String> {
     (high == 0 && low != 0).then(|| low.to_string())
 }
 
-fn reply(context: &CommandContext, ok: bool, message: String) -> CommandExecutorResult {
+/// Sends `message` to the command's sender and returns the command result (1 done, 0 refused).
+fn reply(context: &CommandContext, ok: bool, message: String) -> i32 {
     if ok {
         context.source.send_message(TextComponent::text(message));
-        Ok(1)
+        1
     } else {
         context.source.send_error(TextComponent::text(message));
-        Ok(0)
+        0
     }
 }
 
@@ -105,15 +106,19 @@ struct Request {
 impl CommandExecutor for Request {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let Some(player) = context.source.as_player() else {
-            return reply(context, false, "Only players can link accounts.".into());
+            return Ok(reply(
+                context,
+                false,
+                "Only players can link accounts.".into(),
+            ));
         };
         let target = StringArgumentType::get(context, "name")?;
         if player.client.bedrock().is_some() {
-            return reply(
+            return Ok(reply(
                 context,
                 false,
                 format!("On Bedrock, add the code you were given: /linkaccount {target} <code>"),
-            );
+            ));
         }
         let profile = &player.gameprofile;
         let result = lock(&self.store).request(
@@ -122,7 +127,7 @@ impl CommandExecutor for Request {
             target,
             Instant::now(),
         );
-        match result {
+        Ok(match result {
             Ok(code) => reply(
                 context,
                 true,
@@ -132,7 +137,7 @@ impl CommandExecutor for Request {
                 ),
             ),
             Err(err) => reply(context, false, err.to_string()),
-        }
+        })
     }
 }
 
@@ -144,22 +149,26 @@ struct Confirm {
 impl CommandExecutor for Confirm {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let Some(player) = context.source.as_player() else {
-            return reply(context, false, "Only players can link accounts.".into());
+            return Ok(reply(
+                context,
+                false,
+                "Only players can link accounts.".into(),
+            ));
         };
         if player.client.bedrock().is_none() {
-            return reply(
+            return Ok(reply(
                 context,
                 false,
                 "Enter the code on your Bedrock account; on Java, run /linkaccount <bedrock name>."
                     .into(),
-            );
+            ));
         }
         let Some(xuid) = floodgate_xuid(player.gameprofile.id) else {
-            return reply(
+            return Ok(reply(
                 context,
                 false,
                 "Linking needs a Bedrock account signed in to Xbox (online mode).".into(),
-            );
+            ));
         };
         let java_name = StringArgumentType::get(context, "name")?;
         let code = StringArgumentType::get(context, "code")?;
@@ -170,7 +179,7 @@ impl CommandExecutor for Confirm {
             code,
             Instant::now(),
         );
-        match result {
+        Ok(match result {
             Ok(link) => {
                 info!(
                     "Linked Bedrock player {} (XUID {xuid}) to Java account {}",
@@ -183,10 +192,10 @@ impl CommandExecutor for Confirm {
                         link.java_name
                     )),
                 );
-                Ok(1)
+                1
             }
             Err(err) => reply(context, false, err.to_string()),
-        }
+        })
     }
 }
 
@@ -198,10 +207,14 @@ struct Unlink {
 impl CommandExecutor for Unlink {
     fn execute(&self, context: &CommandContext) -> CommandExecutorResult {
         let Some(player) = context.source.as_player() else {
-            return reply(context, false, "Only players can unlink accounts.".into());
+            return Ok(reply(
+                context,
+                false,
+                "Only players can unlink accounts.".into(),
+            ));
         };
         let result = lock(&self.store).unlink(&player.gameprofile.id.to_string());
-        match result {
+        Ok(match result {
             Ok(Some(link)) => {
                 info!(
                     "Unlinked Bedrock player {} from Java account {}",
@@ -223,7 +236,7 @@ impl CommandExecutor for Unlink {
             }
             Ok(None) => reply(context, false, "Your account is not linked.".into()),
             Err(err) => reply(context, false, err.to_string()),
-        }
+        })
     }
 }
 
