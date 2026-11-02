@@ -22,6 +22,7 @@ use tendril_setup::tier::{self, Selection};
 use tendril_setup::{DISCLAIMER, NAME, memory, report, say};
 use tracing::{error, info, warn};
 
+mod linking;
 mod process;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -51,6 +52,7 @@ fn main() -> ExitCode {
 /// Everything decided before the server starts, kept for the ready report.
 struct Plan {
     started: Instant,
+    dir: std::path::PathBuf,
     prepared: Prepared,
     settings: Settings,
     offline: bool,
@@ -116,6 +118,7 @@ fn plan(options: &RunOptions, started: Instant) -> Result<Plan, String> {
     let profile = profile::choose(settings.server.profile, &host);
     Ok(Plan {
         started,
+        dir,
         prepared,
         settings,
         offline: options.offline,
@@ -155,6 +158,7 @@ async fn serve(config: PumpkinConfig, plan: &Plan) -> ExitCode {
         exit(1);
     });
     // Time spent waiting for the operator to confirm plugin permissions isn't startup time.
+    linking::install(&server.server, &plan.dir.join("data"));
     let plugin_wait = server.init_plugins().await;
     let watched = server.server.clone();
     tokio::spawn(async move {

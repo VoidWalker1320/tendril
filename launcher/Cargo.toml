@@ -25,6 +25,7 @@ rayon.workspace = true
 rustls.workspace = true
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "time"] }
 tracing.workspace = true
+uuid.workspace = true
 
 [lints]
 workspace = true

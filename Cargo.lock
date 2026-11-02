@@ -4594,6 +4594,7 @@ dependencies = [
  "tendril-setup",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
