@@ -136,7 +136,8 @@ jobs:
           TOML
           # Speak the Bedrock version this tree serves, give every bot its own identity (BotMark
           # claims one XUID for all bots, so they would collide as one player), and send the
-          # MaxViewDistance field Pumpkin requires in the client data.
+          # MaxViewDistance field Pumpkin requires in the client data. Its 5 s wait for NetherNet
+          # data channels is too short on a busy runner.
           LIB=../tendril/crates/pumpkin-world/src/lib.rs
           PROTO=$(sed -n 's/^pub const CURRENT_BEDROCK_MC_PROTOCOL: u32 = \([0-9]*\);/\1/p' "$LIB")
           GAME=$(sed -n 's/^pub const CURRENT_BEDROCK_MC_VERSION: &str = "\(.*\)";/\1/p' "$LIB")
@@ -144,8 +145,9 @@ jobs:
           sed -i -e "s/^pub const BEDROCK_PROTOCOL_VERSION: i32 = [0-9]*;/pub const BEDROCK_PROTOCOL_VERSION: i32 = $PROTO;/" \
                  -e "s/^pub const BEDROCK_GAME_VERSION: \&str = \".*\";/pub const BEDROCK_GAME_VERSION: \&str = \"$GAME\";/" \
                  -e 's/"xid": "12345678",/"xid": self.username,/' \
-                 -e 's/"UIProfile": 0,/"UIProfile": 0, "MaxViewDistance": 8,/' src/bedrock.rs
-          grep -n -e 'BEDROCK_PROTOCOL_VERSION: i32' -e 'BEDROCK_GAME_VERSION: &str' -e '"xid"' -e 'MaxViewDistance' src/bedrock.rs
+                 -e 's/"UIProfile": 0,/"UIProfile": 0, "MaxViewDistance": 8,/' \
+                 -e 's/timeout(Duration::from_secs(5), open_wait)/timeout(Duration::from_secs(30), open_wait)/' src/bedrock.rs
+          grep -n -e 'BEDROCK_PROTOCOL_VERSION: i32' -e 'BEDROCK_GAME_VERSION: &str' -e '"xid"' -e 'MaxViewDistance' -e 'open_wait)' src/bedrock.rs
           cargo build --release
       - name: Bedrock bots join, move and chat
         run: python3 tendril/bench/bedrock_bots_test.py tendril/target/release/tendril botmark/target/release/botmark 3 45

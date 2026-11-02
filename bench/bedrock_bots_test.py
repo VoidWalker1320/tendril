@@ -38,8 +38,14 @@ def main():
             if time.monotonic() > deadline or server.poll() is not None:
                 raise AssertionError("server never became ready:\n" + "\n".join(server_lines[-30:]))
             time.sleep(0.1)
+        # One Java login first generates the spawn area, so Bedrock bots meet a warm server.
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import javaprobe
+        javaprobe.login(port=25565, name="warmup", timeout=120)
+        # Arm swings are off: BotMark still encodes Animate without the hand byte 26.60 added.
         bot = subprocess.Popen([botmark, "--ip", "127.0.0.1:19132", "--bedrock", "--count", str(bots),
-                                "--delay", "500", "--timeout", "30000", "--spam_message", CHAT,
+                                "--delay", "2000", "--timeout", "30000", "--enable_swing", "false",
+                                "--spam_message", CHAT,
                                 "--spam_message_delay_min", "2000", "--spam_message_delay_max", "4000"],
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, errors="replace")
         threading.Thread(target=reader, args=(bot.stdout, bot_lines), daemon=True).start()
@@ -49,7 +55,9 @@ def main():
         spawned = sum("spawned into world" in l for l in bot_lines)
         chats = sum(CHAT in l for l in server_lines)
         panics = [l for l in server_lines if "panicked" in l or "Crash report" in l]
-        result.update({"spawned": spawned, "chat_lines_on_server": chats, "panics": len(panics)})
+        packet_errors = sum("Failed to handle Bedrock play packet" in l for l in server_lines)
+        result.update({"spawned": spawned, "chat_lines_on_server": chats, "panics": len(panics),
+                       "packet_errors": packet_errors})
         problems = []
         if spawned < bots:
             problems.append(f"only {spawned}/{bots} bots spawned")
@@ -57,6 +65,8 @@ def main():
             problems.append("no Bedrock chat reached the server")
         if panics:
             problems.append(f"server panicked: {panics[:3]}")
+        if packet_errors:
+            problems.append(f"{packet_errors} Bedrock packets the server could not decode")
         if problems:
             raise AssertionError("; ".join(problems) + "\n--- bot log\n" + "\n".join(bot_lines[-40:])
                                  + "\n--- server log\n" + "\n".join(server_lines[-40:]))
