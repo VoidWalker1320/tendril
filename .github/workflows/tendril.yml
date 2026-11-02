@@ -38,8 +38,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: pumpkin-changes
-      - run: cargo clippy --locked -p pumpkin-core --all-targets --all-features
-      - run: cargo test --locked -p pumpkin-core --lib server::ticker
+      - run: cargo clippy --locked -p pumpkin-core -p pumpkin-config --all-targets --all-features
+      - run: cargo test --locked -p pumpkin-core --lib -- server::ticker net::bedrock::login
+      - run: cargo test --locked -p pumpkin-config
 
   first-run:
     # M1 gate: an empty folder becomes a joinable server with one command.
