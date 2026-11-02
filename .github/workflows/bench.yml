@@ -70,3 +70,27 @@ jobs:
         with:
           name: tendril-aarch64-android-release
           path: target/aarch64-linux-android/release/tendril
+
+  formats:
+    # Section 10: pick the default world format from data. Anvil is in the bench job above.
+    name: Bench linux-x86_64 (format ${{ matrix.format }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        format: [linear, pump]
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench-linux-x86_64
+      - name: Build with the release profile
+        run: cargo build --locked --release -p tendril-launcher
+      - name: Bench (3 runs)
+        run: target/release/tendril bench --format ${{ matrix.format }} --json bench-linux-x86_64-format-${{ matrix.format }}.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bench-linux-x86_64-format-${{ matrix.format }}
+          path: bench-linux-x86_64-format-${{ matrix.format }}.json

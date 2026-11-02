@@ -2,8 +2,10 @@
 name: Tendril
 
 on:
-  # Every branch, so milestone branches are checked before they reach main.
+  # Every branch, so milestone branches are checked before they reach main. bench/* branches
+  # only exist to start the Bench workflow on a commit CI already checked.
   push:
+    branches-ignore: ["bench/**"]
   pull_request:
   workflow_dispatch:
 
