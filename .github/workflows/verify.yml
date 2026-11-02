@@ -1,0 +1,20 @@
+# Temporary: checks the upstream PR branches on their own (Pumpkin master + the change only).
+name: Verify upstream branches
+on:
+  push:
+    branches: ["verify/**"]
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable && rustup component add rustfmt clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: verify-upstream
+      - run: cargo fmt --check -p pumpkin-core -p pumpkin-config
+      - run: cargo clippy --locked -p pumpkin-core -p pumpkin-config --all-targets --all-features
+      - run: cargo test --locked -p pumpkin-core --lib -- net::bedrock::login
+      - run: cargo test --locked -p pumpkin-config
