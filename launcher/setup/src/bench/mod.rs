@@ -46,6 +46,8 @@ pub struct Options {
     pub load: Duration,
     pub bot_counts: Vec<usize>,
     pub format: WorldFormat,
+    /// `None` uses the host profile's default.
+    pub view_distance: Option<u8>,
     pub keep: bool,
     pub json: Option<PathBuf>,
 }
@@ -61,6 +63,7 @@ impl Options {
             load: Duration::from_secs(30),
             bot_counts: vec![1, 10, 20],
             format: WorldFormat::Anvil,
+            view_distance: None,
             keep: false,
             json: None,
         }
@@ -149,6 +152,8 @@ pub struct Report {
     pub unix_time: u64,
     pub machine: Machine,
     pub format: &'static str,
+    /// `None` when the profile default was used.
+    pub view_distance: Option<u8>,
     pub idle_seconds: u64,
     pub load_seconds: u64,
     pub fresh_world_spawned_ms: f64,
@@ -169,7 +174,7 @@ pub fn run(
     let dir = scratch_dir()?;
     let java = free_port()?;
     let bedrock = free_port()?;
-    write_config(&dir, java, bedrock, options.format)?;
+    write_config(&dir, java, bedrock, options.format, options.view_distance)?;
     let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, java));
 
     writeln!(out, "{} bench in {}", crate::NAME, dir.display())?;
@@ -201,6 +206,7 @@ pub fn run(
             profile: profile.kind.name(),
         },
         format: format_name(options.format),
+        view_distance: options.view_distance,
         idle_seconds: options.idle.as_secs(),
         load_seconds: options.load.as_secs(),
         fresh_world_spawned_ms: fresh,
@@ -396,11 +402,18 @@ fn free_port() -> io::Result<u16> {
     Err(io::Error::other("no free port"))
 }
 
-fn write_config(dir: &Path, java: u16, bedrock: u16, format: WorldFormat) -> io::Result<()> {
+fn write_config(
+    dir: &Path,
+    java: u16,
+    bedrock: u16,
+    format: WorldFormat,
+    view_distance: Option<u8>,
+) -> io::Result<()> {
+    let view = view_distance.map_or_else(String::new, |v| format!("view_distance = {v}\n"));
     std::fs::write(
         dir.join(crate::settings::FILE_NAME),
         format!(
-            "[server]\nmotd = \"Tendril bench\"\n\n[network]\njava_port = {java}\nbedrock_port = {bedrock}\n\n[world]\nseed = \"tendril-bench\"\nformat = \"{}\"\n",
+            "[server]\nmotd = \"Tendril bench\"\n\n[network]\njava_port = {java}\nbedrock_port = {bedrock}\n\n[world]\nseed = \"tendril-bench\"\nformat = \"{}\"\n{view}",
             format_name(format)
         ),
     )
@@ -438,7 +451,7 @@ fn print_table(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<
     writeln!(out)?;
     writeln!(
         out,
-        "{} {} ({:.1} MB) | {} {} | {} CPUs, {} | profile {} | format {} | median of {} run{}",
+        "{} {} ({:.1} MB) | {} {} | {} CPUs, {} | profile {} | format {} | view distance {} | median of {} run{}",
         crate::NAME,
         report.version,
         report.binary_bytes as f64 / 1e6,
@@ -449,6 +462,9 @@ fn print_table(report: &Report, kind: Kind, out: &mut impl Write) -> io::Result<
             .map_or_else(|| "RAM unknown".into(), profile::gib),
         m.profile,
         report.format,
+        report
+            .view_distance
+            .map_or_else(|| "profile default".to_string(), |v| v.to_string()),
         runs.len(),
         if runs.len() == 1 { "" } else { "s" },
     )?;
@@ -568,7 +584,7 @@ mod tests {
     #[test]
     fn bench_config_is_valid_settings() {
         let dir = tempfile::tempdir().unwrap();
-        write_config(dir.path(), 25601, 19201, WorldFormat::Pump).unwrap();
+        write_config(dir.path(), 25601, 19201, WorldFormat::Pump, Some(10)).unwrap();
         let s = crate::settings::Settings::load(
             dir.path(),
             pumpkin_util::version::JavaMinecraftVersion::V_26_3,
@@ -579,5 +595,6 @@ mod tests {
             (25601, 19201)
         );
         assert_eq!(s.world.format, WorldFormat::Pump);
+        assert_eq!(s.world.view_distance, Some(10));
     }
 }

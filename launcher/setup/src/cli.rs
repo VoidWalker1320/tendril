@@ -26,6 +26,7 @@ idle memory and CPU, memory per player and tick times (3 runs, about 8 min):
   --quick                           One short run, for a quick check
   --runs <n>                        Number of measured runs (default 3)
   --format <anvil|linear|pump>      World format to test (default anvil)
+  --view-distance <2-32>            View distance to test (default: the profile's)
   --keep                            Keep the scratch folder afterwards
   --json <path>                     Where to write the full results";
 
@@ -99,6 +100,7 @@ fn parse_bench(mut args: impl Iterator<Item = String>) -> Result<Command, String
             "--quick" => {
                 options = bench::Options {
                     format: options.format,
+                    view_distance: options.view_distance,
                     keep: options.keep,
                     json: options.json,
                     ..bench::Options::quick()
@@ -122,6 +124,15 @@ fn parse_bench(mut args: impl Iterator<Item = String>) -> Result<Command, String
                         ));
                     }
                 };
+            }
+            "--view-distance" => {
+                options.view_distance = Some(
+                    value("a number from 2 to 32")?
+                        .parse()
+                        .ok()
+                        .filter(|v| (2..=32).contains(v))
+                        .ok_or("--view-distance needs a number from 2 to 32")?,
+                );
             }
             "--keep" => options.keep = true,
             "--json" => options.json = Some(PathBuf::from(value("a path")?)),
@@ -186,6 +197,11 @@ mod tests {
             panic!("expected bench");
         };
         assert_eq!((o.runs, o.format), (1, WorldFormat::Linear));
+        let Ok(Command::Bench(o)) = run(&["bench", "--view-distance", "10"]) else {
+            panic!("expected bench");
+        };
+        assert_eq!(o.view_distance, Some(10));
+        assert!(run(&["bench", "--view-distance", "1"]).is_err());
         assert!(run(&["bench", "--runs", "0"]).is_err());
         assert!(run(&["bench", "--offline"]).is_err());
         assert!(run(&["--offline", "bench"]).is_err());

@@ -94,3 +94,27 @@ jobs:
         with:
           name: bench-linux-x86_64-format-${{ matrix.format }}
           path: bench-linux-x86_64-format-${{ matrix.format }}.json
+
+  view-distance:
+    # Section 4: memory per player at view distance 6, 8 and 10. 8 is the desktop default above.
+    name: Bench linux-x86_64 (view distance ${{ matrix.view }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix:
+        view: [6, 10]
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup update stable && rustup default stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: bench-linux-x86_64
+      - name: Build with the release profile
+        run: cargo build --locked --release -p tendril-launcher
+      - name: Bench (3 runs)
+        run: target/release/tendril bench --view-distance ${{ matrix.view }} --json bench-linux-x86_64-view-${{ matrix.view }}.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bench-linux-x86_64-view-${{ matrix.view }}
+          path: bench-linux-x86_64-view-${{ matrix.view }}.json
