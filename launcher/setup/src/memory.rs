@@ -11,8 +11,8 @@ pub const RELEASE_INTERVAL: Duration = Duration::from_secs(10);
 
 /// Caps glibc's malloc arenas (default: 8 per core), unless `MALLOC_ARENA_MAX` is already set.
 /// Call before any other thread starts.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub fn limit_arenas(max: usize) {
-    #[cfg(all(target_os = "linux", target_env = "gnu"))]
     if std::env::var_os("MALLOC_ARENA_MAX").is_none() {
         let max = libc::c_int::try_from(max).unwrap_or(libc::c_int::MAX);
         // SAFETY: mallopt only tunes the allocator and is called before other threads exist.
@@ -20,20 +20,30 @@ pub fn limit_arenas(max: usize) {
             libc::mallopt(libc::M_ARENA_MAX, max);
         }
     }
-    #[cfg(not(all(target_os = "linux", target_env = "gnu")))]
-    let _ = max;
 }
 
-/// Returns free heap pages to the OS where the allocator supports it (glibc and bionic).
+/// Only glibc has malloc arenas to cap.
+#[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+pub const fn limit_arenas(_max: usize) {}
+
+/// Returns free heap pages to the OS.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
 pub fn release_free_memory() {
-    #[cfg(all(target_os = "linux", target_env = "gnu"))]
     // SAFETY: malloc_trim has no preconditions.
     unsafe {
         libc::malloc_trim(0);
     }
-    #[cfg(target_os = "android")]
+}
+
+/// Returns free heap pages to the OS.
+#[cfg(target_os = "android")]
+pub fn release_free_memory() {
     android::purge();
 }
+
+/// musl returns free memory by itself; macOS and Windows have no portable call for it.
+#[cfg(not(any(all(target_os = "linux", target_env = "gnu"), target_os = "android")))]
+pub const fn release_free_memory() {}
 
 #[cfg(target_os = "android")]
 mod android {
@@ -41,13 +51,20 @@ mod android {
     const M_PURGE: libc::c_int = -101;
     const M_PURGE_ALL: libc::c_int = -104;
 
-    unsafe extern "C" {
-        fn mallopt(param: libc::c_int, value: libc::c_int) -> libc::c_int;
-    }
+    type Mallopt = unsafe extern "C" fn(libc::c_int, libc::c_int) -> libc::c_int;
 
     pub fn purge() {
+        // mallopt is only exported from Android 8 (API 26) and Tendril supports API 24, so it is
+        // looked up at run time instead of linked.
+        // SAFETY: dlsym with RTLD_DEFAULT and a NUL-terminated name has no other preconditions.
+        let symbol = unsafe { libc::dlsym(libc::RTLD_DEFAULT, c"mallopt".as_ptr()) };
+        if symbol.is_null() {
+            return;
+        }
+        // SAFETY: bionic declares `int mallopt(int, int)`, which is what `Mallopt` describes.
+        let mallopt = unsafe { std::mem::transmute::<*mut libc::c_void, Mallopt>(symbol) };
         // SAFETY: mallopt only asks the allocator to release free pages; bionic returns 0 for
-        // options it doesn't know, so older Android versions fall back to M_PURGE or nothing.
+        // options it doesn't know, so older versions fall back to M_PURGE or do nothing.
         unsafe {
             if mallopt(M_PURGE_ALL, 0) == 0 {
                 mallopt(M_PURGE, 0);

@@ -8,6 +8,7 @@
 pub mod bench;
 pub mod cli;
 pub mod first_run;
+pub mod memory;
 pub mod profile;
 pub mod report;
 pub mod settings;

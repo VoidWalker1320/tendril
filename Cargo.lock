@@ -4583,7 +4583,6 @@ dependencies = [
 name = "tendril-launcher"
 version = "0.1.0"
 dependencies = [
- "libc",
  "pumpkin-config",
  "pumpkin-core",
  "pumpkin-data",
@@ -4602,6 +4601,7 @@ name = "tendril-setup"
 version = "0.1.0"
 dependencies = [
  "flate2",
+ "libc",
  "md5",
  "pumpkin-config",
  "pumpkin-util",

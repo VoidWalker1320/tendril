@@ -19,10 +19,9 @@ use tendril_setup::first_run::{self, Prepared};
 use tendril_setup::profile::{self, Host, Kind, Profile};
 use tendril_setup::settings::{self, Settings, TierMode};
 use tendril_setup::tier::{self, Selection};
-use tendril_setup::{DISCLAIMER, NAME, report, say};
+use tendril_setup::{DISCLAIMER, NAME, memory, report, say};
 use tracing::{error, info, warn};
 
-mod memory;
 mod process;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
