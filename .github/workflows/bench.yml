@@ -1,5 +1,6 @@
 # Section 14 benchmarks with the binaries we would ship: upstream's release profile (fat LTO)
-# and stripped symbols. Compares the system allocator with mimalloc (section 10).
+# and stripped symbols. Compares glibc malloc arena caps (section 10); mimalloc lost on RSS
+# everywhere (D-025).
 name: Bench
 
 on:
@@ -17,14 +18,15 @@ env:
 
 jobs:
   bench:
-    name: Bench ${{ matrix.name }} (${{ matrix.alloc }})
+    name: Bench ${{ matrix.name }} (arenas ${{ matrix.arenas }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, ubuntu-26.04-arm]
-        alloc: [system, mimalloc]
+        # tendril = the launcher's own cap (4 on these 4-core runners); 32 = glibc's default.
+        arenas: [tendril, "2", "32"]
         include:
           - os: ubuntu-latest
             name: linux-x86_64
@@ -35,25 +37,24 @@ jobs:
       - run: rustup update stable && rustup default stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: bench-${{ matrix.name }}-${{ matrix.alloc }}
+          key: bench-${{ matrix.name }}
       - name: Build with the release profile
-        run: cargo build --locked --release -p tendril-launcher ${{ matrix.alloc == 'mimalloc' && '--features mimalloc' || '' }}
+        run: cargo build --locked --release -p tendril-launcher
       - name: Bench (3 runs)
-        run: target/release/tendril bench --json bench-${{ matrix.name }}-${{ matrix.alloc }}.json
+        shell: bash
+        run: |
+          if [ "${{ matrix.arenas }}" != tendril ]; then export MALLOC_ARENA_MAX=${{ matrix.arenas }}; fi
+          target/release/tendril bench --json bench-${{ matrix.name }}-arenas-${{ matrix.arenas }}.json
       - uses: actions/upload-artifact@v7
         with:
-          name: bench-${{ matrix.name }}-${{ matrix.alloc }}
-          path: bench-${{ matrix.name }}-${{ matrix.alloc }}.json
+          name: bench-${{ matrix.name }}-arenas-${{ matrix.arenas }}
+          path: bench-${{ matrix.name }}-arenas-${{ matrix.arenas }}.json
 
   android:
     # Same profile for the phone; the phone runs `tendril bench` itself.
-    name: Android release build (${{ matrix.alloc }})
+    name: Android release build
     runs-on: ubuntu-latest
     timeout-minutes: 240
-    strategy:
-      fail-fast: false
-      matrix:
-        alloc: [system, mimalloc]
     steps:
       - uses: actions/checkout@v7
       - run: rustup update stable && rustup default stable && rustup target add aarch64-linux-android
@@ -62,10 +63,10 @@ jobs:
           ndk-version: r27c
       - uses: Swatinem/rust-cache@v2
         with:
-          key: bench-android-${{ matrix.alloc }}
+          key: bench-android
       - run: cargo install cargo-ndk
-      - run: cargo ndk -t arm64-v8a --platform 24 build --locked --release -p tendril-launcher ${{ matrix.alloc == 'mimalloc' && '--features mimalloc' || '' }}
+      - run: cargo ndk -t arm64-v8a --platform 24 build --locked --release -p tendril-launcher
       - uses: actions/upload-artifact@v7
         with:
-          name: tendril-aarch64-android-release-${{ matrix.alloc }}
+          name: tendril-aarch64-android-release
           path: target/aarch64-linux-android/release/tendril
