@@ -68,6 +68,10 @@ pub use recipe::RecipeManager;
 
 use crate::data::advancement_data::AdvancementManager;
 
+/// Wait before the first retry of a failed Bedrock OIDC key fetch; doubles up to the maximum.
+const OIDC_RETRY_FIRST: Duration = Duration::from_secs(5);
+const OIDC_RETRY_MAX: Duration = Duration::from_secs(300);
+
 /// Represents a Minecraft server instance.
 #[repr(C)]
 pub struct Server {
@@ -401,20 +405,32 @@ impl Server {
                     .bedrock
                     .authentication
                     .clone();
-                let keys = match pumpkin_auth::jwt::fetch_oidc_jwks(
-                    auth.url.as_deref(),
-                    auth.connect_timeout,
-                    auth.read_timeout,
-                )
-                .await
-                {
-                    Ok(keys) => keys,
-                    Err(error) => {
-                        error!("Failed to fetch Bedrock OIDC keys: {error}");
-                        (String::new(), pumpkin_auth::jwt::Jwks { keys: Vec::new() })
+                // Until a fetch succeeds the keys stay unset, so Xbox logins are refused with
+                // "OIDC keys not initialized" instead of being checked against no keys for good.
+                let mut delay = OIDC_RETRY_FIRST;
+                loop {
+                    match pumpkin_auth::jwt::fetch_oidc_jwks(
+                        auth.url.as_deref(),
+                        auth.connect_timeout,
+                        auth.read_timeout,
+                    )
+                    .await
+                    {
+                        Ok(keys) => {
+                            let _ = server_clone.bedrock_oidc_keys.set(keys);
+                            return;
+                        }
+                        Err(error) => error!(
+                            "Failed to fetch Bedrock OIDC keys, retrying in {}s: {error}",
+                            delay.as_secs()
+                        ),
                     }
-                };
-                let _ = server_clone.bedrock_oidc_keys.set(keys);
+                    tokio::select! {
+                        () = server_clone.stop_token.cancelled() => return,
+                        () = tokio::time::sleep(delay) => {}
+                    }
+                    delay = (delay * 2).min(OIDC_RETRY_MAX);
+                }
             });
         }
 
