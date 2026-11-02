@@ -125,3 +125,27 @@ Section 10 asks to pick the default format from data. On the x86_64 runner (medi
 ## D-031 Arena cap settled at the profile's worker count, 2-4 (2026-11-02, M2)
 
 Two Bench runs: the cap brings Linux aarch64 from 133-134 MiB to 88 MiB idle; 2 and 4 are within 2 MiB of each other on both architectures, and 2 showed slightly higher p95 tick times on x86_64 (0.30 vs 0.11 ms). Keeping the profile's worker count clamped to 2-4 (D-026).
+
+## D-032 Floodgate UUIDs, only for Xbox-verified XUIDs (2026-11-02, M3)
+
+Pumpkin gets a Bedrock option `floodgate_uuids` (off by default, so existing Pumpkin servers keep their players' UUIDs); Tendril always turns it on, so player data moves to and from a Geyser + Floodgate server (section 8). Only a fully authenticated Xbox login proves an XUID, so the Floodgate UUID and account links apply to those alone; offline-mode and self-signed logins keep the token UUID. Without this, any offline login could claim a linked player's XUID and join as their Java account.
+
+## D-033 Local account linking with codes (2026-11-02, M3)
+
+Like Floodgate's local linking: the Java player names a Bedrock in-game name and gets a six-digit code; that Bedrock player confirms with the Java name and the code within five minutes, three tries at most. Links live in `data/linked-accounts.json` (written through a temporary file). Pumpkin only gets a hook, `Server::bedrock_account_links`, applied before the duplicate-login checks; storage and commands are Tendril's. No global (GeyserMC-hosted) linking: it would send player data to a third party.
+
+## D-034 Bedrock support is the current protocol only, for now (2026-11-02, M3)
+
+Section 8 asks for the latest release plus the previous minor line, like Geyser. The latest release, 26.61 (29 Oct 2026), shares protocol 2225 with 26.60 (Mojang's bedrock-protocol-docs metadata), so both work. 26.50-26.52 (protocol 2193, per Geyser's `GameProtocol`) would need version-aware encoding for the seven packets the 26.60 port changed plus 26.5x block and item tables, which `pumpkin-data` does not generate. That is a Bedrock translation layer like M4's Java one; it moves to the backlog next to M4. The range is one constant, `CURRENT_BEDROCK_MC_PROTOCOL`.
+
+## D-035 BotMark in CI, pinned and patched (2026-11-02, M3)
+
+Pumpkin's BotMark (MIT) is the only NetherNet bot available. CI builds it at a pinned commit against this tree's protocol crates and patches what it needs to join: the Bedrock protocol and game version (read from `pumpkin-world`), a per-bot XUID (BotMark sends the same one for every bot, which also breaks multi-bot runs against upstream Pumpkin) and the `MaxViewDistance` client-data field Pumpkin requires. Two more for a shared runner: its 5 s wait for NetherNet data channels becomes 30 s, and arm swings are off because BotMark still sends `Animate` without the hand byte 26.60 added. A Java login warms the spawn area first. It never runs on the phone.
+
+## D-036 Upstream merges as merge commits on milestone branches (2026-11-02, M3)
+
+`main` is published, so upstream `master` is merged (not rebased) into each milestone branch at its start and whenever upstream moves. The drift-guard test catches changes to upstream's `main.rs`.
+
+## D-037 What M3 sends upstream (2026-11-02, M3)
+
+Two PR drafts, each one commit on Pumpkin `master` 83efbd3a1: the OIDC retry fix (`docs/upstream/bedrock-oidc-retry.md`) and the `floodgate_uuids` option with the verified-XUID rule (`docs/upstream/bedrock-floodgate-uuids.md`). The account-link hook stays in the fork: its only user is Tendril's `/linkaccount`, and Pumpkin's `AsyncPlayerPreLoginEvent` fires after the duplicate-login checks and carries no XUID, so it cannot replace the hook. The hook is one `OnceLock` field on `Server` and eight lines in `login.rs`.
