@@ -22,11 +22,8 @@ use tendril_setup::tier::{self, Selection};
 use tendril_setup::{DISCLAIMER, NAME, report, say};
 use tracing::{error, info, warn};
 
+mod memory;
 mod process;
-
-#[cfg(feature = "mimalloc")]
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -74,6 +71,8 @@ fn run(options: &RunOptions, started: Instant) -> ExitCode {
     };
     let config = plan.settings.to_pumpkin(&plan.profile);
 
+    // Fewer arenas than glibc's 8 per core: they keep freed chunk memory after players leave.
+    memory::limit_arenas(plan.profile.worker_threads.clamp(2, 4));
     // Same named global pool as upstream, sized by the profile.
     let _ = rayon::ThreadPoolBuilder::new()
         .num_threads(plan.profile.worker_threads)
@@ -158,6 +157,16 @@ async fn serve(config: PumpkinConfig, plan: &Plan) -> ExitCode {
     });
     // Time spent waiting for the operator to confirm plugin permissions isn't startup time.
     let plugin_wait = server.init_plugins().await;
+    let watched = server.server.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(memory::RELEASE_INTERVAL);
+        loop {
+            interval.tick().await;
+            if watched.get_player_count() == 0 {
+                let _ = tokio::task::spawn_blocking(memory::release_free_memory).await;
+            }
+        }
+    });
     log_ready(plan, plugin_wait);
 
     server.start().await;
