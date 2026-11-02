@@ -34,6 +34,46 @@ fn player_uuid(
     Uuid::parse_str(&claims.uuid).map_err(|_| LoginError::InvalidUuid)
 }
 
+/// Checks the login token. Returns the player's claims and whether their XUID is proven: only a
+/// fully authenticated (Xbox) login proves it; any other login can claim any XUID.
+async fn authenticate(
+    server: &Arc<Server>,
+    auth_payload: &AuthPayload,
+) -> Result<(pumpkin_auth::jwt::PlayerClaims, bool), LoginError> {
+    Ok(if server.advanced_config.networking.bedrock.online_mode {
+        match auth_payload.authentication_type {
+            AuthenticationType::Full => (
+                verify_oidc_token_path(server, &auth_payload.token, false).await?,
+                true,
+            ),
+            AuthenticationType::SelfSigned => {
+                if server
+                    .advanced_config
+                    .networking
+                    .bedrock
+                    .authentication
+                    .enabled
+                {
+                    return Err(LoginError::SelfSignedNotAllowed);
+                }
+
+                (
+                    verify_oidc_token_path(server, &auth_payload.token, true).await?,
+                    false,
+                )
+            }
+            AuthenticationType::Guest => {
+                return Err(LoginError::GuestUnimplemented);
+            }
+        }
+    } else {
+        (
+            pumpkin_auth::jwt::extract_oidc_token_player_claims(&auth_payload.token)?,
+            false,
+        )
+    })
+}
+
 impl BedrockClient {
     pub async fn handle_login(
         self: &Arc<Self>,
@@ -49,40 +89,7 @@ impl BedrockClient {
         server: &Arc<Server>,
     ) -> Result<PacketHandlerResult, LoginError> {
         let auth_payload: AuthPayload = serde_json::from_slice(&packet.jwt)?;
-        // Only a fully authenticated login proves the XUID; anything else can claim any XUID.
-        let (player_data, xuid_verified) = if server.advanced_config.networking.bedrock.online_mode
-        {
-            match auth_payload.authentication_type {
-                AuthenticationType::Full => (
-                    verify_oidc_token_path(server, &auth_payload.token, false).await?,
-                    true,
-                ),
-                AuthenticationType::SelfSigned => {
-                    if server
-                        .advanced_config
-                        .networking
-                        .bedrock
-                        .authentication
-                        .enabled
-                    {
-                        return Err(LoginError::SelfSignedNotAllowed);
-                    }
-
-                    (
-                        verify_oidc_token_path(server, &auth_payload.token, true).await?,
-                        false,
-                    )
-                }
-                AuthenticationType::Guest => {
-                    return Err(LoginError::GuestUnimplemented);
-                }
-            }
-        } else {
-            (
-                pumpkin_auth::jwt::extract_oidc_token_player_claims(&auth_payload.token)?,
-                false,
-            )
-        };
+        let (player_data, xuid_verified) = authenticate(server, &auth_payload).await?;
 
         let raw_token_str = std::str::from_utf8(&packet.raw_token).map_err(|_| {
             LoginError::InvalidTokenFormat(serde_json::Error::custom(
